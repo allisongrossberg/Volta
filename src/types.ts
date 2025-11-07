@@ -6,8 +6,6 @@ export type LiteraryForm =
   | 'fable'
   | 'proverb'
 
-export type ImageProvider = 'pollinations' | 'dalle' | 'midjourney' | 'huggingface'
-
 export interface ColorPalette {
   primary: string
   secondary: string
