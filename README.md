@@ -145,4 +145,3 @@ The theming system uses CSS custom properties (CSS variables) for seamless color
 - Additional image providers
 - Custom theme presets
 - Export themes as CSS files
-
