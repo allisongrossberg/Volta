@@ -19,8 +19,6 @@ export default function ButtonToBirdThreeJS({
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const birdMeshRef = useRef<THREE.Mesh | null>(null)
-  const rectMeshRef = useRef<THREE.Mesh | null>(null)
-  const triangleMeshRef = useRef<THREE.Mesh | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const animationStartedRef = useRef(false)
   const boidRef = useRef<any>(null)
