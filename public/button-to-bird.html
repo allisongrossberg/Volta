@@ -65,6 +65,7 @@
             color: var(--text);
             transform: rotate(calc(var(--rotate) * 1deg)) translateZ(0);
             -webkit-appearance: none;
+            appearance: none;
             -webkit-tap-highlight-color: transparent;
             z-index: 1;
         }
@@ -99,6 +100,18 @@
                 calc(var(--second-x, var(--left-wing-second-x)) * 1%) calc(var(--second-y, var(--left-wing-second-y)) * 1%), 
                 calc(var(--third-x, var(--left-wing-third-x)) * 1%) calc(var(--third-y, var(--left-wing-third-y)) * 1%)
             );
+            -webkit-clip-path: polygon(
+                calc(var(--first-x, var(--left-wing-first-x)) * 1%) calc(var(--first-y, var(--left-wing-first-y)) * 1%), 
+                calc(var(--second-x, var(--left-wing-second-x)) * 1%) calc(var(--second-y, var(--left-wing-second-y)) * 1%), 
+                calc(var(--third-x, var(--left-wing-third-x)) * 1%) calc(var(--third-y, var(--left-wing-third-y)) * 1%)
+            );
+            will-change: clip-path, transform, -webkit-clip-path;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-perspective: 1000;
+            perspective: 1000;
+            -webkit-transform-style: preserve-3d;
+            transform-style: preserve-3d;
         }
 
         .button .left:after {
@@ -202,6 +215,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
     <script>
+        // Configure GSAP for Safari compatibility
+        gsap.config({ 
+            force3D: true,
+            nullTargetWarn: false 
+        });
+        
         // Three.js Bird Geometry
         function Bird() {
             const geometry = new THREE.BufferGeometry();
@@ -304,35 +323,47 @@
             const screenHeight = window.innerHeight;
             const exitDistance = Math.max(screenWidth, screenHeight) * 1.5; // 1.5x screen size to ensure complete exit
             
+            // CRITICAL: Define safe boundaries to keep bird in viewport (not over header)
+            // In OrthographicCamera coordinates: Y=0 is center, positive Y is UP
+            // Top edge is at screenHeight/2, but we need margin for header
+            const headerHeightPx = 80; // Adjust this based on your header height
+            const maxY = (screenHeight / 2) - headerHeightPx; // Stay below header
+            const minY = -(screenHeight / 2); // Bottom edge
+            
             console.log('Start position:', startX, startY);
             console.log('Screen size:', screenWidth, screenHeight);
+            console.log('Y boundaries - Max (stay below header):', maxY, 'Min (bottom):', minY);
             
-            // Create path: fly UP, loop-de-loop, exit bottom right off screen
+            // Create path: fly UP (within bounds), loop-de-loop, exit bottom right off screen
             for (let i = 0; i <= numPoints; i++) {
                 const t = i / numPoints;
                 let x, y;
                 
                 if (t < 0.3) {
-                    // Fly UPWARD - try POSITIVE Y to go up
+                    // Fly UPWARD - but clamp to maxY to avoid header
                     const t1 = t / 0.3;
                     x = startX + t1 * 80;
-                    y = startY + t1 * 200; // POSITIVE Y = UP
+                    // Instead of flying fixed 200px up, calculate safe distance
+                    const targetY = startY + 200;
+                    y = Math.min(targetY * t1 + startY * (1 - t1), maxY - loopRadius); // Stay below maxY with margin
                 } else if (t < 0.7) {
-                    // Complete the loop-de-loop
+                    // Complete the loop-de-loop (clamped to safe area)
                     const t2 = (t - 0.3) / 0.4;
                     const angle = t2 * Math.PI * 2;
                     const loopCenterX = startX + 150;
-                    const loopCenterY = startY + 200; // Loop center at the top position
+                    // Clamp loop center to ensure full loop stays below header
+                    const desiredLoopY = startY + 200;
+                    const loopCenterY = Math.min(desiredLoopY, maxY - loopRadius);
                     x = loopCenterX + Math.sin(angle) * loopRadius;
                     y = loopCenterY - Math.cos(angle) * loopRadius; // This creates the circular loop
                 } else {
-                    // Exit toward bottom right - fly FAR off screen
+                    // Exit toward bottom right - fly FAR off screen (no clamping on exit)
                     const t3 = (t - 0.7) / 0.3;
                     x = startX + 250 + t3 * exitDistance;
                     y = startY + 100 - t3 * exitDistance; // Move down and right off screen
                 }
                 
-                if (i < 5) console.log('Waypoint', i, ':', x, y);
+                if (i < 5 || i > numPoints - 3) console.log('Waypoint', i, ':', x, y, 'maxY:', maxY);
                 points.push(new THREE.Vector3(x, y, 0));
             }
             
@@ -405,6 +436,15 @@
                     const buttonCenterX = rect.left + rect.width / 2 - window.innerWidth / 2;
                     const buttonCenterY = -(rect.top + rect.height / 2 - window.innerHeight / 2);
 
+                    // Helper function to force Safari repaints
+                    const forceSafariRepaint = () => {
+                        void button.offsetHeight;
+                        const currentTransform = button.style.transform;
+                        button.style.transform = 'translateZ(0.001px)';
+                        void button.offsetHeight;
+                        button.style.transform = currentTransform;
+                    };
+
                     // Bird fold - matching boid structure with triangular wings
                     gsap.to(button, {
                         keyframes: [{
@@ -422,7 +462,9 @@
                             '--right-wing-third-x': 50,
                             '--right-wing-third-y': 50,
                             '--border-radius': 0,
-                            duration: 0.3
+                            duration: 0.3,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }, {
                             // Bird shape - like boid geometry (diagonal view, nose upper-right)
                             '--rotate': 50,
@@ -465,7 +507,9 @@
                             '--right-body-third-x': 65,
                             '--right-body-third-y': 45,
                             
-                            duration: 0.3
+                            duration: 0.3,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }]
                     });
 
@@ -479,13 +523,17 @@
                             '--left-wing-second-y': 55,
                             '--right-wing-second-y': 45,
                             duration: 0.2,
-                            ease: "power2.out"
+                            ease: "power2.out",
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }).to(button, {
                             // Wings down  
                             '--left-wing-second-y': 70,
                             '--right-wing-second-y': 60,
                             duration: 0.2,
-                            ease: "power2.in"
+                            ease: "power2.in",
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         });
                     }
                     
@@ -493,6 +541,8 @@
                     flapTimeline.to(button, {
                         '--plane-opacity': 0,
                         duration: 0.2,
+                        onUpdate: forceSafariRepaint,
+                        force3D: true,
                         onComplete() {
                             // Start Three.js bird with physics
                             boid.position.set(buttonCenterX, buttonCenterY, 0);
@@ -510,20 +560,28 @@
                             '--text-opacity': 0,
                             '--left-wing-background': getVar('--primary-darkest'),
                             '--right-wing-background': getVar('--primary-darkest'),
-                            duration: 0.1
+                            duration: 0.1,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }, {
                             '--left-wing-background': getVar('--primary'),
                             '--right-wing-background': getVar('--primary'),
-                            duration: 0.1
+                            duration: 0.1,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }, {
                             '--left-body-background': getVar('--primary-dark'),
                             '--right-body-background': getVar('--primary-darkest'),
-                            duration: 0.4
+                            duration: 0.4,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }, {
                             '--success-opacity': 1,
                             '--success-scale': 1,
                             duration: 0.25,
-                            delay: 0.25
+                            delay: 0.25,
+                            onUpdate: forceSafariRepaint,
+                            force3D: true
                         }]
                     });
                 }

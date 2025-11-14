@@ -15,6 +15,7 @@ interface ExplodingTextToBirdsProps {
   skipAnimation?: boolean // If true, skip bird animation and show particles immediately
   skipExplosion?: boolean // If true, skip the text explosion phase (already happened on InputPage)
   onFlightBegins?: () => void // Called when birds begin flocking (hide input UI)
+  onArtBoundsCalculated?: (bottomEdgePercent: number) => void // Pass art bottom edge position as vh from container top
 }
 
 interface Bird {
@@ -38,7 +39,7 @@ interface Bird {
   isButtonBird?: boolean // Mark if this is the button bird (leader)
 }
 
-function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRevealComplete, onOutputReady, onParticlesFormed, skipAnimation = false, skipExplosion = false, onFlightBegins }: ExplodingTextToBirdsProps) {
+function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRevealComplete, onOutputReady, onParticlesFormed, skipAnimation = false, skipExplosion = false, onFlightBegins, onArtBoundsCalculated }: ExplodingTextToBirdsProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const textContainerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -208,19 +209,18 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
       console.log('🐦 Button bird entering - flock will wait')
         
         // Create the rest of the flock behind the button bird
-        // Position them further to the right (larger x) so button bird enters first with clear separation
+        // Position them closer to button bird for better flocking behavior
         // IMPORTANT: All birds must start OFFSCREEN (beyond viewport + sidebar)
-        // Button bird is closer to viewport, flock is further right (will enter later)
         for (let i = 1; i < totalBirds; i++) {
           const charIndex = i % hypothesis.length
-          // Position flock birds further to the right (800-1000px further) so button bird enters first
+          // Position flock birds closer to button bird (200-400px behind) for tighter formation
           // Stagger them slightly so they don't all appear at once
-          const staggerOffset = (i % 10) * 20 // Stagger every 10 birds by 20px
-          // Flock should be 800-1000px further right than button bird (will enter later)
-          const flockAbsoluteX = buttonBirdAbsoluteX + 800 + staggerOffset + (Math.random() - 0.5) * 50
+          const staggerOffset = (i % 10) * 15 // Stagger every 10 birds by 15px
+          // Flock should be 200-400px behind button bird (much closer for better flocking)
+          const flockAbsoluteX = buttonBirdAbsoluteX + 200 + staggerOffset + (Math.random() - 0.5) * 100
           // Ensure flock starts offscreen: must be beyond viewport right edge
-          const absoluteFlockX = Math.max(flockAbsoluteX, viewportRightEdge + 200) // At least 200px offscreen
-          const startY = buttonBirdScreenY + (Math.random() - 0.5) * 300 // Vertical spread around button bird
+          const absoluteFlockX = Math.max(flockAbsoluteX, viewportRightEdge + 150) // At least 150px offscreen
+          const startY = buttonBirdScreenY + (Math.random() - 0.5) * 250 // Vertical spread around button bird
           charPositions.push({
             char: hypothesis[charIndex] || 'A',
             x: absoluteFlockX, // Absolute screen position
@@ -905,14 +905,33 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
       
       // Calculate 3D dimensions that match the screen display
       let width3D, height3D
+      let actualScreenHeight // Track actual rendered height in screen pixels
       if (imageAspect > screenAspect) {
         // Image is wider - constrain by width
         width3D = worldWidth * 0.8
         height3D = width3D / imageAspect
+        actualScreenHeight = maxScreenWidth / imageAspect
       } else {
         // Image is taller - constrain by height
         height3D = worldHeight * 0.75
         width3D = height3D * imageAspect
+        actualScreenHeight = maxScreenHeight
+      }
+      
+      // Calculate height as percentage of viewport
+      const heightPercent = (actualScreenHeight / containerHeight) * 100
+      
+      // Art is centered vertically, so calculate bottom edge position
+      // Bottom edge = viewport center (50vh) + half the art height
+      // Subtract 5vh to bring text closer to art
+      const bottomEdgePercent = 50 + (heightPercent / 2) - 5
+      
+      console.log(`🎨 Art dimensions: ${actualScreenHeight.toFixed(0)}px (${heightPercent.toFixed(1)}vh)`)
+      console.log(`📍 Art bottom edge at: ${bottomEdgePercent.toFixed(1)}vh from container top (with -5vh adjustment)`)
+      
+      if (onArtBoundsCalculated) {
+        // Pass bottom edge position with adjustment for closer spacing
+        onArtBoundsCalculated(bottomEdgePercent)
       }
       
       sampledPixels.forEach((pixel) => {

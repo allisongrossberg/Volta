@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { gsap } from 'gsap'
 
+// Ensure GSAP properly handles CSS variables in Safari
+gsap.config({ 
+  force3D: true,
+  nullTargetWarn: false 
+})
+
 interface ButtonToBirdThreeJSProps {
   buttonElement: HTMLElement | null
   onAnimationComplete: () => void
@@ -84,14 +90,14 @@ export default function ButtonToBirdThreeJS({
     
     if (!containerRef.current) {
       console.warn('⚠️ ButtonToBirdThreeJS: Container ref not ready, will retry')
-      // Retry after a short delay
-      const timer = setTimeout(() => {
+      // Use GSAP's delayedCall for consistent timing across browsers
+      const retryDelayed = gsap.delayedCall(0.05, () => {
         if (containerRef.current && buttonElement && buttonPosition) {
           console.log('✅ ButtonToBirdThreeJS: Container ready on retry')
           // Force re-render by updating state or trigger effect again
         }
-      }, 50)
-      return () => clearTimeout(timer)
+      })
+      return () => retryDelayed.kill()
     }
 
     console.log('🎬 ButtonToBirdThreeJS: Starting animation', {
@@ -418,28 +424,39 @@ export default function ButtonToBirdThreeJS({
       const cameraTop = viewportHeight / 2
       const cameraBottom = -viewportHeight / 2
       
-      console.log('Start position:', startX, startY, 'Viewport bounds:', { cameraLeft, cameraRight, cameraTop, cameraBottom })
+      // CRITICAL: Define safe boundaries to keep bird in viewport (not over header/nav)
+      // In OrthographicCamera coordinates: Y=0 is center, positive Y is UP
+      // Top edge is at viewportHeight/2, but we need margin for header
+      const headerHeightPx = 80 // Adjust this based on your header/nav height
+      const maxY = cameraTop - headerHeightPx // Stay below header
       
-      // Create path: fly UP, loop-de-loop, exit bottom right COMPLETELY off screen
+      console.log('Start position:', startX, startY, 'Viewport bounds:', { cameraLeft, cameraRight, cameraTop, cameraBottom })
+      console.log('Y boundaries - Max (stay below header):', maxY, 'Min (bottom):', cameraBottom)
+      
+      // Create path: fly UP (within bounds), loop-de-loop, exit bottom right COMPLETELY off screen
       for (let i = 0; i <= numPoints; i++) {
         const t = i / numPoints
         let x: number, y: number
         
         if (t < 0.3) {
-          // Fly UPWARD
+          // Fly UPWARD - but clamp to maxY to avoid header
           const t1 = t / 0.3
           x = startX + t1 * 80
-          y = startY + t1 * 200 // POSITIVE Y = UP
+          // Instead of flying fixed 200px up, calculate safe distance
+          const targetY = startY + 200
+          y = Math.min(targetY * t1 + startY * (1 - t1), maxY - loopRadius) // Stay below maxY with margin
         } else if (t < 0.7) {
-          // Complete the loop-de-loop
+          // Complete the loop-de-loop (clamped to safe area)
           const t2 = (t - 0.3) / 0.4
           const angle = t2 * Math.PI * 2
           const loopCenterX = startX + 150
-          const loopCenterY = startY + 200
+          // Clamp loop center to ensure full loop stays below header
+          const desiredLoopY = startY + 200
+          const loopCenterY = Math.min(desiredLoopY, maxY - loopRadius)
           x = loopCenterX + Math.sin(angle) * loopRadius
           y = loopCenterY - Math.cos(angle) * loopRadius
         } else {
-          // Exit toward bottom right - ensure it goes COMPLETELY off screen
+          // Exit toward bottom right - ensure it goes COMPLETELY off screen (no clamping on exit)
           const t3 = (t - 0.7) / 0.3
           // Start from loop end position, fly far beyond viewport bounds
           const exitStartX = startX + 250
@@ -451,7 +468,7 @@ export default function ButtonToBirdThreeJS({
           y = exitStartY + t3 * (finalY - exitStartY)
         }
         
-        if (i < 5 || i > numPoints - 3) console.log('Waypoint', i, ':', x, y, 'offScreen:', x > cameraRight || y < cameraBottom)
+        if (i < 5 || i > numPoints - 3) console.log('Waypoint', i, ':', x, y, 'maxY:', maxY, 'offScreen:', x > cameraRight || y < cameraBottom)
         points.push(new THREE.Vector3(x, y, 0))
       }
       
@@ -631,53 +648,73 @@ export default function ButtonToBirdThreeJS({
         rightDiv: buttonElement.querySelector('.right')
       })
       
+      // Helper function to force Safari to repaint (fixes clip-path animation issues)
+      const forceSafariRepaint = () => {
+        if (buttonElement) {
+          // Force a reflow in Safari by reading offsetHeight
+          void buttonElement.offsetHeight
+          // Force repaint by toggling a transform
+          const currentTransform = buttonElement.style.transform
+          buttonElement.style.transform = 'translateZ(0.001px)'
+          void buttonElement.offsetHeight
+          buttonElement.style.transform = currentTransform
+        }
+      }
+      
       // EXACT animation from button-to-bird.html
       // Fold into BIRD shape (matching boid geometry - two triangular wings)
-      gsap.to(buttonElement, {
-        keyframes: [{
-          // Collapse to horizontal line
-          '--left-wing-first-x': 0,
-          '--left-wing-first-y': 50,
-          '--left-wing-second-x': 50,
-          '--left-wing-second-y': 50,
-          '--left-wing-third-x': 0,
-          '--left-wing-third-y': 50,
-          '--right-wing-first-x': 50,
-          '--right-wing-first-y': 50,
-          '--right-wing-second-x': 100,
-          '--right-wing-second-y': 50,
-          '--right-wing-third-x': 100,
-          '--right-wing-third-y': 50,
-          '--border-radius': 0,
-          duration: 0.2
-        }, {
-          // Form bird wings (wider like boid)
-          '--left-wing-first-x': 50,
-          '--left-wing-first-y': 50,
-          '--left-wing-second-x': 0,
-          '--left-wing-second-y': 55,
-          '--left-wing-third-x': 50,
-          '--left-wing-third-y': 70,
-          '--right-wing-first-x': 50,
-          '--right-wing-first-y': 50,
-          '--right-wing-second-x': 100,
-          '--right-wing-second-y': 55,
-          '--right-wing-third-x': 50,
-          '--right-wing-third-y': 70,
-          '--left-body-first-x': 50,
-          '--left-body-first-y': 50,
-          '--left-body-second-x': 50,
-          '--left-body-second-y': 50,
-          '--left-body-third-x': 50,
-          '--left-body-third-y': 50,
-          '--right-body-first-x': 50,
-          '--right-body-first-y': 50,
-          '--right-body-second-x': 50,
-          '--right-body-second-y': 50,
-          '--right-body-third-x': 50,
-          '--right-body-third-y': 50,
-          duration: 0.3
-        }]
+      // Use explicit timeline for better cross-browser timing control
+      const morphTimeline = gsap.timeline()
+      
+      morphTimeline.to(buttonElement, {
+        // Collapse to horizontal line
+        '--left-wing-first-x': 0,
+        '--left-wing-first-y': 50,
+        '--left-wing-second-x': 50,
+        '--left-wing-second-y': 50,
+        '--left-wing-third-x': 0,
+        '--left-wing-third-y': 50,
+        '--right-wing-first-x': 50,
+        '--right-wing-first-y': 50,
+        '--right-wing-second-x': 100,
+        '--right-wing-second-y': 50,
+        '--right-wing-third-x': 100,
+        '--right-wing-third-y': 50,
+        '--border-radius': 0,
+        duration: 0.2,
+        ease: 'power2.inOut',
+        onUpdate: forceSafariRepaint,
+        force3D: true
+      }).to(buttonElement, {
+        // Form bird wings (wider like boid)
+        '--left-wing-first-x': 50,
+        '--left-wing-first-y': 50,
+        '--left-wing-second-x': 0,
+        '--left-wing-second-y': 55,
+        '--left-wing-third-x': 50,
+        '--left-wing-third-y': 70,
+        '--right-wing-first-x': 50,
+        '--right-wing-first-y': 50,
+        '--right-wing-second-x': 100,
+        '--right-wing-second-y': 55,
+        '--right-wing-third-x': 50,
+        '--right-wing-third-y': 70,
+        '--left-body-first-x': 50,
+        '--left-body-first-y': 50,
+        '--left-body-second-x': 50,
+        '--left-body-second-y': 50,
+        '--left-body-third-x': 50,
+        '--left-body-third-y': 50,
+        '--right-body-first-x': 50,
+        '--right-body-first-y': 50,
+        '--right-body-second-x': 50,
+        '--right-body-second-y': 50,
+        '--right-body-third-x': 50,
+        '--right-body-third-y': 50,
+        duration: 0.3,
+        ease: 'power2.inOut',
+        onUpdate: forceSafariRepaint,
+        force3D: true
       })
       
       // Wing flapping before takeoff (EXACT from HTML)
@@ -688,11 +725,15 @@ export default function ButtonToBirdThreeJS({
         flapTimeline.to(buttonElement, {
           '--left-wing-third-y': 55,
           '--right-wing-third-y': 55,
-          duration: 0.15
+          duration: 0.15,
+          onUpdate: forceSafariRepaint,
+          force3D: true
         }).to(buttonElement, {
           '--left-wing-third-y': 70,
           '--right-wing-third-y': 70,
-          duration: 0.15
+          duration: 0.15,
+          onUpdate: forceSafariRepaint,
+          force3D: true
         })
       }
       
@@ -700,6 +741,8 @@ export default function ButtonToBirdThreeJS({
       flapTimeline.to(buttonElement, {
         '--plane-opacity': 0,
         duration: 0.2,
+        onUpdate: forceSafariRepaint,
+        force3D: true,
         onComplete() {
           console.log('✅ CSS bird flew offscreen - starting Three.js bird animation')
           
@@ -740,8 +783,9 @@ export default function ButtonToBirdThreeJS({
               console.log('➕ Added bird to scene')
             }
             
-            // Start animation - use setTimeout to ensure it starts after CSS transition completes
-            setTimeout(() => {
+            // Use GSAP's delayedCall instead of setTimeout for consistent cross-browser timing
+            // This syncs with GSAP's ticker which is more reliable across browsers
+            gsap.delayedCall(0.05, () => {
               threeJsActiveRef.current = true
               if (animateThreeJSRef.current) {
                 animateThreeJSRef.current()
@@ -753,7 +797,7 @@ export default function ButtonToBirdThreeJS({
                 birdVisible: birdMeshRef.current?.visible,
                 birdInScene: sceneRef.current?.children.includes(birdMeshRef.current || {} as THREE.Mesh)
               })
-            }, 50) // Small delay to ensure CSS transition is complete
+            })
           } else {
             console.error('❌ Cannot start Three.js bird - missing refs', {
               hasButton: !!buttonElement,
@@ -774,26 +818,31 @@ export default function ButtonToBirdThreeJS({
           '--border-radius': 0,
           '--left-wing-background': getVar('--primary-darkest'),
           '--right-wing-background': getVar('--primary-darkest'),
-          duration: 0.1
+          duration: 0.1,
+          onUpdate: forceSafariRepaint,
+          force3D: true
         }, {
           '--left-wing-background': getVar('--primary'),
           '--right-wing-background': getVar('--primary'),
-          duration: 0.1
+          duration: 0.1,
+          onUpdate: forceSafariRepaint,
+          force3D: true
         }, {
           '--left-body-background': getVar('--primary-dark'),
           '--right-body-background': getVar('--primary-darkest'),
-          duration: 0.4
+          duration: 0.4,
+          onUpdate: forceSafariRepaint,
+          force3D: true
         }]
         // Removed the "sent" success message animation
       })
     }
     
-    // Small delay to ensure CSS is fully applied before animation
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Execute the HTML animation code
-        executeHTMLAnimation()
-      })
+    // Use GSAP's delayedCall for more reliable cross-browser timing
+    // This ensures proper initialization without race conditions
+    gsap.delayedCall(0.016, () => {
+      // 16ms = 1 frame at 60fps, ensures CSS is applied and browser has painted
+      executeHTMLAnimation()
     })
 
     // Cleanup

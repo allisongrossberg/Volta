@@ -17,6 +17,7 @@ function AnimationPage() {
   const [isFocused, setIsFocused] = useState(false)
   const [charCount, setCharCount] = useState(0)
   const [selectedLiteraryForm, setSelectedLiteraryForm] = useState<LiteraryForm>('short_poem')
+  const [artBottomEdgeVh, setArtBottomEdgeVh] = useState(75) // Dynamic position of art bottom edge in vh (default 75vh)
 
   // Enforce character limit - ensure hypothesis never exceeds 300 characters
   useEffect(() => {
@@ -589,6 +590,10 @@ function AnimationPage() {
           onFlightBegins={() => {
             console.log('✈️ Birds taking flight')
           }}
+          onArtBoundsCalculated={(bottomEdgeVh) => {
+            console.log(`📐 Art bottom edge: ${bottomEdgeVh.toFixed(1)}vh from container top`)
+            setArtBottomEdgeVh(bottomEdgeVh)
+          }}
         />
       )}
 
@@ -619,12 +624,14 @@ function AnimationPage() {
             }}
           >
             {/* Art area - transparent spacer so WebGL shows through */}
+            {/* Spacer height = exact bottom edge of centered art */}
             <div style={{
               width: '100%',
-              height: '80vh', // Give art most of viewport, text starts below
-              minHeight: '80vh',
+              height: `${artBottomEdgeVh}vh`, // Exact position where art ends
+              minHeight: `${artBottomEdgeVh}vh`,
               flexShrink: 0,
-              pointerEvents: 'none' // Allow clicks to pass through to WebGL
+              pointerEvents: 'none', // Allow clicks to pass through to WebGL
+              transition: 'height 0.3s ease-out' // Smooth transition when height changes
             }} />
             
             {/* Text content - Sits cleanly below the art with white background */}
@@ -633,10 +640,10 @@ function AnimationPage() {
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'center',
-              padding: '3rem 0 6rem 0', // Padding for text area - space above text
-              marginTop: '0',
+              padding: '0 0 6rem 0', // No top padding - text immediately below art
+              marginTop: '-2rem', // Negative margin to pull text closer to art
               pointerEvents: 'auto', // Enable text selection and interaction
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 10%, rgb(255,255,255) 20%)', // Gradient fade from transparent to white
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 20%, rgb(255,255,255) 40%)', // Softer gradient fade
               minHeight: 'auto' // Let content determine height
             }}>
               <div className="final-text" style={{

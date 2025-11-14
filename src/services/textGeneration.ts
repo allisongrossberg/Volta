@@ -97,9 +97,11 @@ Requirements:
 - Keep it concise: maximum 200 words or 20 lines
 - Make it beautiful, poetic, and memorable
 - Avoid simply restating the hypothesis - interpret it through the lens of the literary form
-- No additional commentary or explanation - only the literary work itself
+- CRITICAL: Provide ONLY ONE literary work - do NOT give multiple options or alternatives
+- CRITICAL: Do NOT use "Or" to separate different versions - give me your BEST single version
+- No additional commentary, explanation, or alternatives - only the ONE literary work itself
 
-Begin your ${formDescription} now:`;
+Begin your ${formDescription} now (remember: ONLY ONE version, no alternatives):`;
 
   // Try multiple chat models in order of preference
   // Removed non-working models: openai/gpt-oss-20b (unexpected format), google/flan-t5-large (not chat), mosaicml/mpt-7b-storywriter (not chat)
@@ -173,6 +175,19 @@ Begin your ${formDescription} now:`;
         console.warn(`⚠️ Empty response from ${modelName}`);
         continue; // Try next model
       }
+      
+      // CRITICAL: Remove multiple options if model generated them
+      // Split by "Or" (with surrounding whitespace/newlines) and take only the first option
+      const orPattern = /\n\s*Or\s*\n|\n\s*or\s*\n|^Or\s*$|^or\s*$/gm;
+      if (orPattern.test(generatedText)) {
+        console.log(`⚠️ Model generated multiple options with "Or" - taking first option only`);
+        // Split on "Or" and take the first part
+        const firstOption = generatedText.split(/\n\s*[Oo]r\s*\n/)[0].trim();
+        generatedText = firstOption;
+      }
+      
+      // Also remove trailing "Or" at the end if present
+      generatedText = generatedText.replace(/\s+[Oo]r\s*$/g, '').trim();
       
       // Enforce length limit (approximately 200 words or 20 lines)
       const lines = generatedText.split('\n');
