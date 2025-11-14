@@ -4,6 +4,7 @@ import AnimationPage from './pages/AnimationPage'
 function App() {
   return (
     <Router
+      basename="/Volta"
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true
