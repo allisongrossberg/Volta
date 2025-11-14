@@ -1,0 +1,60 @@
+.bird-flock-reveal-container {
+  /* Position properties handled by inline styles */
+  background: #ffffff; /* Match page background color */
+  overflow: hidden; /* Prevent any gaps */
+}
+
+.bird-flock-reveal-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  pointer-events: auto; /* Canvas needs to receive mouse events */
+  background-color: #ffffff; /* Match page background color */
+  margin: 0;
+  padding: 0;
+  vertical-align: top; /* Remove any baseline spacing */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Minimal progress indicator */
+.reveal-progress-minimal {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: 200px;
+}
+
+.progress-bar-minimal {
+  width: 100%;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.progress-fill-minimal {
+  height: 100%;
+  background: #000000;
+  transition: width 0.5s ease;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+

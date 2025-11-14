@@ -1,15 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import InputPage from './pages/InputPage'
-import LoadingPage from './pages/LoadingPage'
-import OutputPage from './pages/OutputPage'
+import AnimationPage from './pages/AnimationPage'
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <Routes>
-        <Route path="/" element={<InputPage />} />
-        <Route path="/loading" element={<LoadingPage />} />
-        <Route path="/output" element={<OutputPage />} />
+        <Route path="/" element={<AnimationPage />} />
       </Routes>
     </Router>
   )

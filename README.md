@@ -4,11 +4,37 @@ A web application that transforms scientific hypotheses into beautiful literary 
 
 ## Features
 
-- **Input Page**: Enter your scientific hypothesis and select a literary form
-- **Loading Page**: Beautiful loading animation while processing
-- **Output Page**: View your transformed hypothesis as literature with matching illustration
-- **Dynamic Theming**: The entire page adapts its colors based on the generated illustration
-- **Free Image Generation**: Uses Pollinations.AI by default (no API key required!)
+- **Minimalist Input Page**: 
+  - Clean, editorial-style design inspired by modern portfolios
+  - Fixed sidebar navigation with numbered sections
+  - Borderless input field with focus transitions
+  - Typography-focused layout (Space Grotesk + Inter)
+  - Pure white background with subtle gray accents
+  - Character counter and real-time validation
+  - Smooth Framer Motion animations
+  - Fully responsive grid layout
+  
+- **Magical Loading Experience**: 
+  - **Words Transform into Birds**: Hypothesis text morphs into a flock of birds
+  - **Flocking Simulation**: Realistic boids algorithm with separation, alignment, and cohesion
+  - **Progressive Reveal**: Birds fly across the screen revealing the AI illustration
+  - Real-time progress tracking
+  - Smooth transitions and natural bird movements
+
+- **Stunning Output Page**: 
+  - View your transformed hypothesis as literature with WebGL-enhanced illustrations
+  - Real-time canvas effects with progressive reveal animations
+  - Shader effects and particle systems
+  - 3D coverflow carousel transitions between literary forms
+  
+- **Dynamic Theming**: The entire page adapts its colors based on generated illustrations
+
+- **Surrealist AI Art**:
+  - **Dalí-Inspired Style**: Illustrations in the style of Salvador Dalí's Flordali series
+  - Surrealist botanical drawings with dreamlike elements, perspective lines, and butterflies
+  - Stable Diffusion via Hugging Face (FLUX, SDXL, SD 2.1) - FREE with API key
+  - Automatic fallback to Pollinations.AI (no API key required!)
+  - Multiple text generation models for literary transformations
 
 ## Literary Forms
 
@@ -45,7 +71,11 @@ VITE_IMAGE_PROVIDER=pollinations
 
 **Note:** 
 - **Text generation**: Works FREE with Hugging Face API key (uses Mistral-7B model). Falls back to mock responses if no keys provided.
-- **Image generation**: Works completely FREE by default using Pollinations.AI - no API keys needed!
+- **Image generation**: 
+  - **RECOMMENDED**: Use Hugging Face Stable Diffusion for best results with Dalí-inspired surrealist style
+  - Get your FREE Hugging Face API key at: https://huggingface.co/settings/tokens
+  - Falls back to Pollinations.AI if no key is provided
+  - Art style: Salvador Dalí's Flordali series - surrealist botanical illustrations
 
 3. Start the development server:
 ```bash
@@ -89,19 +119,23 @@ The app will automatically try Claude first (if key provided), then Hugging Face
 
 ### Image Generation Options
 
-#### 🆓 FREE Option (Default - No API Key Required!)
+#### 🆓 FREE Option (Fallback - No API Key Required!)
 **Pollinations.AI** - Completely free, no sign-up, no API key needed!
 - ✅ **100% Free** - Unlimited use
 - ✅ **No API Key** - Works out of the box
 - ✅ **Privacy-Focused** - Zero data storage
 - ✅ **Fast** - On-the-fly image generation
-- Uses Stable Diffusion Flux model for high-quality results
+- Uses Stable Diffusion Flux model
+- Note: Hugging Face generally produces better results for the Dalí-inspired style
 
-#### 🆓 FREE Option (With Free API Key)
+#### 🆓 FREE Option (Recommended - With Free API Key)
 **Hugging Face Inference API** - Free tier available
+- ✅ **Best for Dalí-inspired surrealist botanical art**
 - Get free API key at: https://huggingface.co/settings/tokens
-- Uses Stable Diffusion XL
+- Uses Stable Diffusion models (FLUX.1, SDXL, SD 2.1)
 - Free tier has rate limits but generous for personal use
+- Optimized prompts for vintage botanical + surrealism style
+- Higher quality and more artistic control than Pollinations
 
 #### 💰 Paid Option
 **DALL-E 3** (OpenAI) - Premium quality
@@ -138,10 +172,104 @@ The theming system uses CSS custom properties (CSS variables) for seamless color
 - The UI is responsive and works on mobile devices
 - Color extraction uses HTML5 Canvas API for pixel analysis
 - Dynamic theming is implemented via CSS custom properties
+- **WebGL Features**: Built with Three.js for immersive 3D experiences
+  - Custom GLSL shaders for progressive image reveal
+  - Particle systems with physics-based animation
+  - Real-time morphing geometry
+  - 3D carousel with coverflow effect
+  - Optimized for performance with requestAnimationFrame
+
+## WebGL Features
+
+The application now includes immersive WebGL experiences powered by Three.js:
+
+### Input Page - Minimalist Editorial Design
+- **Layout**:
+  - Fixed sidebar navigation (200px width)
+  - Grid-based responsive layout
+  - Content centered in main area with max-width
+  - Clean white background (#ffffff on #ffffff)
+  - Subtle gray borders (#f0f0f0)
+  
+- **Sidebar Navigation**:
+  - Numbered sections (001, 002, etc.)
+  - Version information in footer
+  - Hover opacity transitions
+  - Mobile-responsive (horizontal on small screens)
+  
+- **Typography**:
+  - Space Grotesk for headings (uppercase)
+  - Inter for body text and UI elements
+  - Tight letter spacing and modern proportions
+  - Clear hierarchy with size and weight
+  
+- **Input Field**:
+  - Borderless design with bottom border only
+  - Border transitions from #e0e0e0 → #000000 on focus
+  - Transparent background
+  - Real-time character counter
+  - Shake animation for validation errors
+  
+- **Interactions**:
+  - Black button with white text
+  - Inverted colors on hover
+  - Smooth 0.2s transitions
+  - Scale feedback on interactions
+  - Framer Motion entrance animations
+  
+### Loading Page - Word-to-Bird Animation
+- **Phase 1: Text Transformation** (0-2 seconds):
+  - Each word from the hypothesis becomes a text sprite
+  - Words arranged in a circular formation
+  - Text sprites morph and fade into bird shapes
+  - Scale and rotation transitions
+  
+- **Phase 2: Flocking Behavior** (2+ seconds):
+  - **Boids Algorithm**: 
+    - Separation: Birds avoid crowding neighbors
+    - Alignment: Birds steer towards average heading of neighbors
+    - Cohesion: Birds steer towards average position of neighbors
+  - Natural bird movement with velocity limiting
+  - Screen edge wrapping for continuous motion
+  - Birds rotate to face direction of travel
+  
+- **Phase 3: Image Reveal**:
+  - Birds paint white trails on a reveal canvas
+  - Trails act as mask to progressively show the illustration
+  - Shader-based reveal with shimmer effects on edges
+  - Real-time progress tracking (0-100%)
+  - Automatic navigation when 80% revealed
+  
+- **Technical Implementation**:
+  - Canvas-based reveal texture updated per frame
+  - Custom THREE.js sprites for text and birds
+  - Dynamic lighting and camera positioning
+  - Efficient memory management and cleanup
+
+### Output Page
+- **Progressive Reveal**: Images appear with radial reveal animation from center
+- **Shader Effects**: 
+  - Organic noise-based edge distortion
+  - Shimmer effects during reveal
+  - Edge glow with custom colors
+  - Smooth opacity transitions
+- **Particle Systems**: 200 particles per illustration with physics
+- **3D Transitions**: Coverflow effect between literary forms with perspective
+- **Floating Animations**: Subtle rotation and translation for depth
+
+### Performance Optimizations
+- Efficient render loops with requestAnimationFrame
+- Automatic cleanup on component unmount
+- Responsive canvas sizing
+- Device pixel ratio optimization
+- Geometry and material disposal
 
 ## Future Enhancements
 
+- Interactive particle manipulation
+- User-customizable shader parameters
 - Video generation support (Sora, Runway, etc.)
-- Additional image providers
+- Additional WebGL effects (post-processing, bloom, etc.)
 - Custom theme presets
 - Export themes as CSS files
+- VR/AR support
