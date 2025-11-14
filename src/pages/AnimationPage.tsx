@@ -593,6 +593,19 @@ function AnimationPage() {
           onArtBoundsCalculated={(bottomEdgeVh) => {
             console.log(`📐 Art bottom edge: ${bottomEdgeVh.toFixed(1)}vh from container top`)
             setArtBottomEdgeVh(bottomEdgeVh)
+            // Force Safari repaint to ensure height updates properly
+            if (typeof window !== 'undefined') {
+              // Use double RAF for Safari to ensure proper repaint
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  // Force a reflow in Safari by reading layout properties
+                  const outputContainer = document.querySelector('.output-content-container')
+                  if (outputContainer) {
+                    void (outputContainer as HTMLElement).offsetHeight
+                  }
+                })
+              })
+            }
           }}
         />
       )}
@@ -625,25 +638,37 @@ function AnimationPage() {
           >
             {/* Art area - transparent spacer so WebGL shows through */}
             {/* Spacer height = exact bottom edge of centered art */}
-            <div style={{
-              width: '100%',
-              height: `${artBottomEdgeVh}vh`, // Exact position where art ends
-              minHeight: `${artBottomEdgeVh}vh`,
-              flexShrink: 0,
-              pointerEvents: 'none', // Allow clicks to pass through to WebGL
-              transition: 'height 0.3s ease-out' // Smooth transition when height changes
-            }} />
+            {/* Direct vh value works better in Safari than CSS variables */}
+            <div 
+              style={{
+                width: '100%',
+                height: `${artBottomEdgeVh}vh`, // Direct vh value for Safari compatibility
+                minHeight: `${artBottomEdgeVh}vh`,
+                flexShrink: 0,
+                pointerEvents: 'none', // Allow clicks to pass through to WebGL
+                transition: 'height 0.3s ease-out',
+                WebkitTransition: 'height 0.3s ease-out', // Safari prefix
+                willChange: 'height', // Optimize for Safari
+                WebkitBackfaceVisibility: 'hidden', // Safari rendering optimization
+                backfaceVisibility: 'hidden'
+              } as React.CSSProperties}
+            />
             
             {/* Text content - Sits cleanly below the art with white background */}
+            {/* Use transform instead of negative margin for Safari compatibility */}
             <div style={{
               width: '100%',
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'center',
               padding: '0 0 6rem 0', // No top padding - text immediately below art
-              marginTop: '-2rem', // Negative margin to pull text closer to art
+              marginTop: '0', // No negative margin - use transform instead for Safari
+              transform: 'translateY(-2rem)', // Transform works better in Safari
+              WebkitTransform: 'translateY(-2rem)', // Safari prefix
               pointerEvents: 'auto', // Enable text selection and interaction
               background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 20%, rgb(255,255,255) 40%)', // Softer gradient fade
+              WebkitBackgroundClip: 'padding-box', // Safari gradient fix
+              backgroundClip: 'padding-box',
               minHeight: 'auto' // Let content determine height
             }}>
               <div className="final-text" style={{
