@@ -32,6 +32,8 @@ jobs:
         run: npm install
       
       - name: Build
+        env:
+          VITE_HUGGINGFACE_API_KEY: ${{ secrets.VITE_HUGGINGFACE_API_KEY }}
         run: npm run build
       
       - name: Add .nojekyll file
