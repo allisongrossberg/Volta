@@ -229,85 +229,22 @@
             return geometry;
         }
 
-        // Boid class with physics (matching React component)
+        // Boid class with physics
         var Boid = function() {
             var vector = new THREE.Vector3();
             var _acceleration;
-            var _width = 900;
-            var _height = 900;
-            var _depth = 1600;
-            var _goal = null;
-            var _neighborhoodRadius = 800;
-            var _maxSpeed = 3; // Increased speed for faster animation
-            var _maxSteerForce = 0.1;
-            var _avoidWalls = false;
+            var _maxSpeed = 2; // Slower speed
+            var _maxSteerForce = 0.05; // Gentler steering
 
             this.position = new THREE.Vector3();
             this.velocity = new THREE.Vector3();
             _acceleration = new THREE.Vector3();
 
             this.setGoal = function(target) {
-                _goal = target;
-            }
-
-            this.setAvoidWalls = function(value) {
-                _avoidWalls = value;
-            }
-
-            this.setWorldSize = function(width, height, depth) {
-                _width = width;
-                _height = height;
-                _depth = depth;
-            }
-
-            this.run = function(boids) {
-                if (_avoidWalls) {
-                    vector.set(-_width, this.position.y, this.position.z);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(19);
-                    _acceleration.add(vector);
-
-                    vector.set(_width, this.position.y, this.position.z);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(19);
-                    _acceleration.add(vector);
-
-                    vector.set(this.position.x, -_height, this.position.z);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(19);
-                    _acceleration.add(vector);
-
-                    vector.set(this.position.x, _height, this.position.z);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(19);
-                    _acceleration.add(vector);
-
-                    vector.set(this.position.x, this.position.y, -_depth);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(15);
-                    _acceleration.add(vector);
-
-                    vector.set(this.position.x, this.position.y, _depth);
-                    vector = this.avoid(vector);
-                    vector.multiplyScalar(5);
-                    _acceleration.add(vector);
-                }
-
-                if (Math.random() > 0.5) {
-                    this.flock(boids);
-                }
-
-                this.move();
-            }
-
-            this.flock = function(boids) {
-                if (_goal) {
-                    _acceleration.add(this.reach(_goal, 0.9));
-                }
-
-                _acceleration.add(this.alignment(boids));
-                _acceleration.add(this.cohesion(boids));
-                _acceleration.add(this.separation(boids));
+                var steer = new THREE.Vector3();
+                steer.subVectors(target, this.position);
+                steer.multiplyScalar(0.003); // Slower acceleration
+                _acceleration.add(steer);
             }
 
             this.move = function() {
@@ -318,120 +255,6 @@
                 }
                 this.position.add(this.velocity);
                 _acceleration.set(0, 0, 0);
-            }
-
-            this.checkBounds = function() {
-                if (this.position.x > _width) this.position.x = -_width;
-                if (this.position.x < -_width) this.position.x = _width;
-                if (this.position.y > _height) this.position.y = -_height;
-                if (this.position.y < -_height) this.position.y = _height;
-                if (this.position.z > _depth) this.position.z = -_depth;
-                if (this.position.z < -_depth) this.position.z = _depth;
-            }
-
-            this.avoid = function(target) {
-                var steer = new THREE.Vector3();
-                steer.copy(this.position);
-                steer.sub(target);
-                steer.multiplyScalar(1 / this.position.distanceToSquared(target));
-                return steer;
-            }
-
-            this.repulse = function(target) {
-                var distance = this.position.distanceTo(target);
-                if (distance < 200) {
-                    var steer = new THREE.Vector3();
-                    steer.subVectors(this.position, target);
-                    steer.multiplyScalar(0.9 / distance);
-                    _acceleration.add(steer);
-                }
-            }
-
-            this.reach = function(target, amount) {
-                var steer = new THREE.Vector3();
-                steer.subVectors(target, this.position);
-                steer.multiplyScalar(amount);
-                return steer;
-            }
-
-            this.alignment = function(boids) {
-                var boid, velSum = new THREE.Vector3();
-                var count = 0;
-
-                for (var i = 0, il = boids.length; i < il; i++) {
-                    if (Math.random() > 0.5) continue;
-
-                    boid = boids[i];
-                    var distance = boid.position.distanceTo(this.position);
-
-                    if (distance > 0 && distance <= _neighborhoodRadius) {
-                        velSum.add(boid.velocity);
-                        count++;
-                    }
-                }
-
-                if (count > 0) {
-                    velSum.divideScalar(count);
-                    var l = velSum.length();
-                    if (l > _maxSteerForce) {
-                        velSum.divideScalar(l / _maxSteerForce);
-                    }
-                }
-
-                return velSum;
-            }
-
-            this.cohesion = function(boids) {
-                var boid, distance;
-                var posSum = new THREE.Vector3();
-                var steer = new THREE.Vector3();
-                var count = 0;
-
-                for (var i = 0, il = boids.length; i < il; i++) {
-                    if (Math.random() > 0.5) continue;
-
-                    boid = boids[i];
-                    distance = boid.position.distanceTo(this.position);
-
-                    if (distance > 0 && distance <= _neighborhoodRadius) {
-                        posSum.add(boid.position);
-                        count++;
-                    }
-                }
-
-                if (count > 0) {
-                    posSum.divideScalar(count);
-                }
-
-                steer.subVectors(posSum, this.position);
-                var l = steer.length();
-                if (l > _maxSteerForce) {
-                    steer.divideScalar(l / _maxSteerForce);
-                }
-
-                return steer;
-            }
-
-            this.separation = function(boids) {
-                var boid, distance;
-                var posSum = new THREE.Vector3();
-                var repulse = new THREE.Vector3();
-
-                for (var i = 0, il = boids.length; i < il; i++) {
-                    if (Math.random() > 0.2) continue;
-
-                    boid = boids[i];
-                    distance = boid.position.distanceTo(this.position);
-
-                    if (distance > 0 && distance <= _neighborhoodRadius) {
-                        repulse.subVectors(this.position, boid.position);
-                        repulse.normalize();
-                        repulse.divideScalar(distance);
-                        posSum.add(repulse);
-                    }
-                }
-
-                return posSum;
             }
         }
 
@@ -473,27 +296,24 @@
 
         function createLoopWaypoints(startX, startY) {
             const points = [];
-            const numPoints = 25; // More points for smoother exit
+            const numPoints = 20;
             const loopRadius = 100;
             
-            // Get viewport bounds for OrthographicCamera
-            // Camera sees from -width/2 to width/2 and -height/2 to height/2
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const cameraRight = viewportWidth / 2;
-            const cameraLeft = -viewportWidth / 2;
-            const cameraTop = viewportHeight / 2;
-            const cameraBottom = -viewportHeight / 2;
+            // Get screen dimensions to ensure bird exits completely
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const exitDistance = Math.max(screenWidth, screenHeight) * 1.5; // 1.5x screen size to ensure complete exit
             
-            console.log('Start position:', startX, startY, 'Viewport bounds:', { cameraLeft, cameraRight, cameraTop, cameraBottom });
+            console.log('Start position:', startX, startY);
+            console.log('Screen size:', screenWidth, screenHeight);
             
-            // Create path: fly UP, loop-de-loop, exit bottom right COMPLETELY off screen
+            // Create path: fly UP, loop-de-loop, exit bottom right off screen
             for (let i = 0; i <= numPoints; i++) {
                 const t = i / numPoints;
                 let x, y;
                 
                 if (t < 0.3) {
-                    // Fly UPWARD
+                    // Fly UPWARD - try POSITIVE Y to go up
                     const t1 = t / 0.3;
                     x = startX + t1 * 80;
                     y = startY + t1 * 200; // POSITIVE Y = UP
@@ -502,27 +322,20 @@
                     const t2 = (t - 0.3) / 0.4;
                     const angle = t2 * Math.PI * 2;
                     const loopCenterX = startX + 150;
-                    const loopCenterY = startY + 200;
+                    const loopCenterY = startY + 200; // Loop center at the top position
                     x = loopCenterX + Math.sin(angle) * loopRadius;
-                    y = loopCenterY - Math.cos(angle) * loopRadius;
+                    y = loopCenterY - Math.cos(angle) * loopRadius; // This creates the circular loop
                 } else {
-                    // Exit toward bottom right - ensure it goes COMPLETELY off screen
+                    // Exit toward bottom right - fly FAR off screen
                     const t3 = (t - 0.7) / 0.3;
-                    // Start from loop end position, fly far beyond viewport bounds
-                    const exitStartX = startX + 250;
-                    const exitStartY = startY + 100;
-                    // Final position should be well beyond the right edge and bottom edge
-                    const finalX = cameraRight + 600; // Well beyond right edge
-                    const finalY = cameraBottom - 400; // Well beyond bottom edge
-                    x = exitStartX + t3 * (finalX - exitStartX);
-                    y = exitStartY + t3 * (finalY - exitStartY);
+                    x = startX + 250 + t3 * exitDistance;
+                    y = startY + 100 - t3 * exitDistance; // Move down and right off screen
                 }
                 
-                if (i < 5 || i > numPoints - 3) console.log('Waypoint', i, ':', x, y, 'offScreen:', x > cameraRight || y < cameraBottom);
+                if (i < 5) console.log('Waypoint', i, ':', x, y);
                 points.push(new THREE.Vector3(x, y, 0));
             }
             
-            console.log('✅ Created', points.length, 'waypoints - final waypoint:', points[points.length - 1], 'should be off screen');
             return points;
         }
 
@@ -534,8 +347,7 @@
             if (currentWaypoint < waypoints.length) {
                 const target = waypoints[currentWaypoint];
                 boid.setGoal(target);
-                // Use run() method with empty boids array (single bird, no flocking)
-                boid.run([]);
+                boid.move();
                 
                 bird.position.copy(boid.position);
                 
@@ -544,22 +356,16 @@
                     currentWaypoint++;
                 }
                 
-                // Calculate rotation based on velocity (matching HTML reference)
-                const velLength = boid.velocity.length();
-                if (velLength > 0) {
-                    bird.rotation.y = Math.atan2(-boid.velocity.z, boid.velocity.x);
-                    bird.rotation.z = Math.asin(boid.velocity.y / velLength);
-                }
+                // Calculate rotation based on velocity
+                bird.rotation.y = Math.atan2(-boid.velocity.z, boid.velocity.x);
+                bird.rotation.z = Math.asin(boid.velocity.y / boid.velocity.length());
                 
-                // Wing flapping (matching HTML reference)
-                bird.phase = (bird.phase + (Math.max(0, bird.rotation.z) + 0.1)) % 62.73;
+                // Wing flapping
+                bird.phase = (bird.phase + (Math.max(0, bird.rotation.z) + 0.1)) % 6.28;
                 const flapAmount = Math.sin(bird.phase) * 5;
-                // Update wing vertices (indices 4 and 5 in the geometry)
-                if (bird.geometry.attributes.position && bird.geometry.attributes.position.array) {
-                    bird.geometry.attributes.position.array[13] = flapAmount; // vertex 4 y
-                    bird.geometry.attributes.position.array[16] = flapAmount; // vertex 5 y
-                    bird.geometry.attributes.position.needsUpdate = true;
-                }
+                bird.geometry.attributes.position.array[13] = flapAmount;
+                bird.geometry.attributes.position.array[16] = flapAmount;
+                bird.geometry.attributes.position.needsUpdate = true;
             } else {
                 // Animation complete
                 threeJsActive = false;
@@ -645,12 +451,12 @@
                             '--left-body-third-x': 60,
                             '--left-body-third-y': 47,
                             
-                            '--right-body-first-x': 65,
-                            '--right-body-first-y': 45,
-                            '--right-body-second-x': 65,
-                            '--right-body-second-y': 45,
-                            '--right-body-third-x': 65,
-                            '--right-body-third-y': 45,
+                            '--right-body-first-x': 60,
+                            '--right-body-first-y': 43,
+                            '--right-body-second-x': 70,
+                            '--right-body-second-y': 40,
+                            '--right-body-third-x': 60,
+                            '--right-body-third-y': 47,
                             
                             duration: 0.3
                         }]
