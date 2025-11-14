@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ExplodingTextToBirds from '../components/ExplodingTextToBirds'
 import ButtonToBirdThreeJS from '../components/ButtonToBirdThreeJS'
 import AboutModal from '../components/AboutModal'
+import CustomSelect from '../components/CustomSelect'
+import { generateText, LITERARY_FORMS, type LiteraryForm } from '../services/textGeneration'
+import { generateImage } from '../services/imageGeneration'
 import '../styles/InputPage.css'
 import '../styles/LoadingPage.css'
 import '../styles/OutputPage.css'
@@ -13,6 +16,7 @@ function AnimationPage() {
   const [hypothesis, setHypothesis] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [charCount, setCharCount] = useState(0)
+  const [selectedLiteraryForm, setSelectedLiteraryForm] = useState<LiteraryForm>('short_poem')
 
   // Enforce character limit - ensure hypothesis never exceeds 300 characters
   useEffect(() => {
@@ -25,6 +29,7 @@ function AnimationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [phase, setPhase] = useState<AnimationPhase>('input')
   const [finalText, setFinalText] = useState<string>('')
+  const [illustrationUrl, setIllustrationUrl] = useState<string | null>(null)
   const [particlesFormed, setParticlesFormed] = useState(false)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [showButtonAnimation, setShowButtonAnimation] = useState(false)
@@ -34,13 +39,20 @@ function AnimationPage() {
   const aboutTriggerRef = useRef<HTMLSpanElement>(null)
   const submitButtonRef = useRef<HTMLButtonElement>(null)
   const htmlAnimationHandlerRef = useRef<((e: MouseEvent) => void) | null>(null)
+  
+  // Store API results in refs to avoid state updates during animation
+  const apiResultsRef = useRef<{
+    text: string | null
+    form: string | null
+    imageUrl: string | null
+  }>({ text: null, form: null, imageUrl: null })
 
   // Attach HTML's click handler directly to button (runs immediately on click, like HTML version)
   useEffect(() => {
     const button = submitButtonRef.current
     if (!button) return
 
-    const handleButtonClick = (e: MouseEvent) => {
+    const handleButtonClick = async (e: MouseEvent) => {
       // Only run if button doesn't already have 'active' class
       // (This matches the HTML's check: if(!button.classList.contains('active')))
       if (!button.classList.contains('active') && !isSubmitting && hypothesis.trim()) {
@@ -66,22 +78,91 @@ function AnimationPage() {
         button.style.willChange = 'transform, opacity'
         void button.offsetWidth // Force reflow
         
-        // Hide textarea
+        // Hide all form elements EXCEPT the button (which is fixed and isolated)
+        // Don't hide the container itself - it might affect the button animation
+        // Only hide the specific form elements inside
+        
+        // Hide all form groups (labels, inputs, selects)
+        const formGroups = document.querySelectorAll('.form-group')
+        formGroups.forEach((group) => {
+          const el = group as HTMLElement
+          el.style.transition = 'opacity 0.3s ease-out'
+          el.style.opacity = '0'
+          el.style.pointerEvents = 'none' // Prevent any interaction
+        })
+        
+        // Hide textarea specifically
         if (textareaRef.current) {
           textareaRef.current.style.opacity = '0'
           textareaRef.current.style.transition = 'opacity 0.3s'
+          textareaRef.current.style.pointerEvents = 'none'
         }
         
-        // Fade form group
-        const formGroup = document.querySelector('.form-group') as HTMLElement
-        if (formGroup) {
-          formGroup.style.transition = 'opacity 0.3s ease-out'
-          formGroup.style.opacity = '0'
+        // Hide all labels
+        const labels = document.querySelectorAll('.form-group label')
+        labels.forEach((label) => {
+          const el = label as HTMLElement
+          el.style.transition = 'opacity 0.3s ease-out'
+          el.style.opacity = '0'
+          el.style.pointerEvents = 'none'
+        })
+        
+        // Hide all select elements and wrappers
+        const selects = document.querySelectorAll('.literary-form-select, .select-wrapper')
+        selects.forEach((select) => {
+          const el = select as HTMLElement
+          el.style.transition = 'opacity 0.3s ease-out'
+          el.style.opacity = '0'
+          el.style.pointerEvents = 'none'
+        })
+        
+        // Hide textarea wrapper
+        const textareaWrapper = document.querySelector('.textarea-wrapper')
+        if (textareaWrapper) {
+          const el = textareaWrapper as HTMLElement
+          el.style.transition = 'opacity 0.3s ease-out'
+          el.style.opacity = '0'
+          el.style.pointerEvents = 'none'
         }
         
-        // Update phase - ButtonToBirdThreeJS will handle the actual animation
-        setPhase('animating')
-        setShowButtonAnimation(true)
+        // IMPORTANT: Don't hide the form or container - the button needs to stay visible
+        // The button is already fixed-positioned and isolated, so it won't be affected
+        
+        // Use requestAnimationFrame to ensure animation gets priority, then update state
+        // This ensures GSAP animation can start before React re-renders
+        requestAnimationFrame(() => {
+          // Update phase - ButtonToBirdThreeJS will handle the actual animation
+          setPhase('animating')
+          setShowButtonAnimation(true)
+          
+          // Start API calls immediately after state update - they run in parallel
+          // Store results in refs to avoid further re-renders during animation
+          console.log('🚀 Starting API calls in parallel with animation')
+          ;(async () => {
+            try {
+              console.log('📡 Starting API calls for text and image generation')
+              // Generate text first
+              const textResult = await generateText(hypothesis, selectedLiteraryForm)
+              // Store in ref instead of state to avoid re-render during animation
+              apiResultsRef.current.text = textResult.text
+              apiResultsRef.current.form = textResult.form
+              
+              // Then generate image from the generated text
+              // Pass literary form to match original format from commit 0b80fee
+              const imageUrl = await generateImage(textResult.text, window.innerWidth, window.innerHeight, selectedLiteraryForm)
+              if (imageUrl) {
+                apiResultsRef.current.imageUrl = imageUrl
+              }
+              
+              console.log('✅ API calls completed (stored in refs, will update state after animation)')
+            } catch (error) {
+              console.error('❌ Error generating content:', error)
+              // Fall back to mock data if API fails
+              const formConfig = LITERARY_FORMS.find(f => f.value === selectedLiteraryForm)
+              apiResultsRef.current.form = formConfig?.label.toUpperCase() || 'LITERARY WORK'
+            }
+          })() // Fire and forget - runs in parallel, no state updates during animation
+        })
         
         console.log('✅ Button setup complete - ButtonToBirdThreeJS will handle animation')
       }
@@ -96,7 +177,7 @@ function AnimationPage() {
         button.removeEventListener('click', htmlAnimationHandlerRef.current)
       }
     }
-  }, [isSubmitting, hypothesis])
+  }, [isSubmitting, hypothesis, selectedLiteraryForm])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -206,9 +287,11 @@ function AnimationPage() {
     setIsSubmitting(false)
     setParticlesFormed(false)
     setFinalText('')
+    setIllustrationUrl(null)
     setShowButtonAnimation(false)
     setShowBirdFlocking(false)
     setLiteraryForm('')
+    setSelectedLiteraryForm('short_poem')
     
     // Reset button to initial state
     if (submitButtonRef.current) {
@@ -336,6 +419,18 @@ function AnimationPage() {
           >
             <form onSubmit={handleSubmit} className="input-form">
               <div className="form-group">
+                <label htmlFor="literary-form">
+                  SELECT LITERARY FORM
+                </label>
+                <CustomSelect
+                  id="literary-form"
+                  value={selectedLiteraryForm}
+                  onChange={setSelectedLiteraryForm}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="hypothesis">
                   TRANSFORM YOUR HYPOTHESIS INTO A WORK OF ART
                 </label>
@@ -449,6 +544,19 @@ function AnimationPage() {
             setShowBirdFlocking(true)
             // Unmount immediately since animation is complete
             setShowButtonAnimation(false)
+            
+            // NOW update state from refs - animation is complete, safe to trigger re-renders
+            // API calls already happened in parallel, we just need to update state now
+            if (apiResultsRef.current.text) {
+              setFinalText(apiResultsRef.current.text)
+            }
+            if (apiResultsRef.current.form) {
+              setLiteraryForm(apiResultsRef.current.form)
+            }
+            if (apiResultsRef.current.imageUrl) {
+              setIllustrationUrl(apiResultsRef.current.imageUrl)
+            }
+            console.log('✅ State updated from API results (animation already complete)')
           }}
         />
       )}
@@ -459,7 +567,7 @@ function AnimationPage() {
       {hypothesis && showBirdFlocking && (phase === 'animating' || phase === 'output') && (
         <ExplodingTextToBirds
           hypothesis={hypothesis}
-          illustrationUrl={null}
+          illustrationUrl={illustrationUrl}
           literaryText={phase === 'output' ? finalText : undefined}
           skipAnimation={false} // Keep animation running - particles are already formed
           skipExplosion={true} // Always skip explosion, using button animation instead
@@ -472,24 +580,8 @@ function AnimationPage() {
           onParticlesFormed={() => {
             console.log('✅ Particles fully formed - moving to output phase')
             setParticlesFormed(true)
-            // Mock final text - in production this would come from API
-            setFinalText(`In gardens where the sunlight falls,
-A seed awaits its gentle calls.
-Through soil and rain, it finds its way,
-Reaching upward toward the day.
-
-Each photon caught, a gift of light,
-Transforms the dark into the bright.
-The stem ascends, the leaves unfold,
-A story written, green and bold.
-
-For every ray that touches earth,
-Another inch of verdant birth.
-The hypothesis, now proven true:
-More light brings forth a taller view.`)
-            // Set literary form type - in production this would come from API
-            setLiteraryForm('SONNET')
             // Move to output phase after particles are formed
+            // Text and image should already be set from API calls
             setTimeout(() => {
               setPhase('output')
             }, 2000) // Wait 2 seconds to see the art

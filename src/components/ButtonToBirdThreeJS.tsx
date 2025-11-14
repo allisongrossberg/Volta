@@ -729,14 +729,33 @@ export default function ButtonToBirdThreeJS({
             currentWaypointRef.current = 0
             earlyCallbackTriggeredRef.current = false // Reset early callback flag
             
-            // Start animation
-            threeJsActiveRef.current = true
-            animateThreeJSRef.current()
+            // Ensure bird is visible and positioned correctly
+            if (birdMeshRef.current) {
+              birdMeshRef.current.position.copy(boidRef.current.position)
+              birdMeshRef.current.visible = true
+              console.log('👁️ Bird mesh made visible at position:', birdMeshRef.current.position)
+            }
             
-            console.log('🐦 Three.js bird animation started', {
-              startPos: { x: buttonCenterX, y: buttonCenterY },
-              waypointsCount: waypoints.length
-            })
+            // Ensure scene has the bird
+            if (sceneRef.current && birdMeshRef.current && !sceneRef.current.children.includes(birdMeshRef.current)) {
+              sceneRef.current.add(birdMeshRef.current)
+              console.log('➕ Added bird to scene')
+            }
+            
+            // Start animation - use setTimeout to ensure it starts after CSS transition completes
+            setTimeout(() => {
+              threeJsActiveRef.current = true
+              if (animateThreeJSRef.current) {
+                animateThreeJSRef.current()
+              }
+              
+              console.log('🐦 Three.js bird animation started', {
+                startPos: { x: buttonCenterX, y: buttonCenterY },
+                waypointsCount: waypoints.length,
+                birdVisible: birdMeshRef.current?.visible,
+                birdInScene: sceneRef.current?.children.includes(birdMeshRef.current || {} as THREE.Mesh)
+              })
+            }, 50) // Small delay to ensure CSS transition is complete
           } else {
             console.error('❌ Cannot start Three.js bird - missing refs', {
               hasButton: !!buttonElement,

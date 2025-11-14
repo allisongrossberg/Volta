@@ -38,7 +38,7 @@ interface Bird {
   isButtonBird?: boolean // Mark if this is the button bird (leader)
 }
 
-function ExplodingTextToBirds({ hypothesis, illustrationUrl: _illustrationUrl, literaryText, onRevealComplete, onOutputReady, onParticlesFormed, skipAnimation = false, skipExplosion = false, onFlightBegins }: ExplodingTextToBirdsProps) {
+function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRevealComplete, onOutputReady, onParticlesFormed, skipAnimation = false, skipExplosion = false, onFlightBegins }: ExplodingTextToBirdsProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const textContainerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -790,19 +790,22 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl: _illustrationUrl, l
   // sampleColorAtUV removed - not needed for particle system (particles have colors assigned directly)
 
   function loadIllustration(scene: THREE.Scene, birdCount: number) {
-    // Always use fallback image - AI image generation disabled
     // Create exactly as many particles as birds - one particle per bird
-    // Load the fallback image and sample pixels from it
+    // Use generated image if available, otherwise fallback to default image
     const targetPositions: THREE.Vector3[] = []
     const colors: THREE.Color[] = []
     
-    console.log('🖼️ Loading fallback image for particle system')
-    // Always load fallback image (rose image)
-    const fallbackImg = new Image()
-    fallbackImg.crossOrigin = 'anonymous'
+    // Use illustrationUrl if provided, otherwise use fallback
+    const imageUrl = illustrationUrl || FALLBACK_IMAGE_PATH
     
-    fallbackImg.onload = () => {
-      console.log(`🖼️ Fallback image loaded: ${fallbackImg.width}x${fallbackImg.height}, creating particle system...`)
+    console.log(`🖼️ Loading image for particle system: ${imageUrl ? (illustrationUrl ? 'generated' : 'fallback') : 'none'}`)
+    const img = new Image()
+    // Set crossOrigin for all images to allow canvas pixel reading
+    // Pollinations.AI should support CORS - if it doesn't, we'll fall back to circular pattern
+    img.crossOrigin = 'anonymous'
+    
+    img.onload = () => {
+      console.log(`🖼️ Image loaded: ${img.width}x${img.height}, creating particle system...`)
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
       if (!ctx) {
@@ -810,13 +813,34 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl: _illustrationUrl, l
         return
       }
       
-      canvas.width = fallbackImg.width
-      canvas.height = fallbackImg.height
-      ctx.drawImage(fallbackImg, 0, 0)
+      canvas.width = img.width
+      canvas.height = img.height
       
-      // Get image data
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const pixels = imageData.data
+      try {
+        ctx.drawImage(img, 0, 0)
+      } catch (error) {
+        console.error('❌ Error drawing image to canvas:', error)
+        // Fall back to circular pattern if we can't draw the image
+        if (img.onerror) {
+          img.onerror(new ErrorEvent('error'))
+        }
+        return
+      }
+      
+      // Get image data - this will fail if canvas is tainted (CORS issue)
+      let imageData: ImageData
+      let pixels: Uint8ClampedArray
+      try {
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        pixels = imageData.data
+      } catch (error) {
+        console.error('❌ CORS error: Cannot read canvas pixels (image is tainted). Falling back to circular pattern.', error)
+        // Fall back to circular pattern if we can't read pixels
+        if (img.onerror) {
+          img.onerror(new ErrorEvent('error'))
+        }
+        return
+      }
       
       // Sample pixels from the image (matching Codrops tutorial approach)
       const validPixels: { x: number, y: number, r: number, g: number, b: number }[] = []
@@ -928,8 +952,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl: _illustrationUrl, l
       }
     }
     
-    fallbackImg.onerror = () => {
-      console.error('❌ Failed to load fallback image, using circular pattern')
+    img.onerror = () => {
+      console.error(`❌ Failed to load image (${imageUrl}), using circular pattern`)
       // Ultimate fallback: circular pattern
       const targetParticleCount = birdCount * 4
       for (let i = 0; i < targetParticleCount; i++) {
@@ -952,7 +976,7 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl: _illustrationUrl, l
       createParticleSystem(scene, particleCount, targetPositions, colors)
     }
     
-    fallbackImg.src = FALLBACK_IMAGE_PATH
+    img.src = imageUrl
   }
   
   function createParticleSystem(
