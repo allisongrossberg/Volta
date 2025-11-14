@@ -299,7 +299,10 @@ function AnimationPage() {
       {/* Bottom Right - Character Count / Loading / Form Type */}
       <div className="bottom-right">
         {phase === 'input' && (
-          <span>{charCount} {charCount === 1 ? 'character' : 'characters'}</span>
+          <span style={{ color: charCount >= 300 ? '#ff4444' : 'inherit' }}>
+            {charCount}/300 {charCount === 1 ? 'character' : 'characters'}
+            {charCount >= 300 && ' (limit reached)'}
+          </span>
         )}
         {phase === 'animating' && (
           <div className="loading-status">
@@ -341,10 +344,28 @@ function AnimationPage() {
                     ref={textareaRef}
                     id="hypothesis"
                     value={hypothesis}
+                    maxLength={300}
                     onChange={(e) => {
                       const newValue = e.target.value.slice(0, 300) // Enforce 300 char limit
                       setHypothesis(newValue)
                       setCharCount(newValue.length)
+                    }}
+                    onKeyDown={(e) => {
+                      // Prevent typing if at limit (except backspace, delete, arrow keys, etc.)
+                      if (hypothesis.length >= 300 && 
+                          !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'].includes(e.key) &&
+                          !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault()
+                        // Show brief visual feedback that limit is reached
+                        if (textareaRef.current) {
+                          textareaRef.current.style.borderColor = '#ff4444'
+                          setTimeout(() => {
+                            if (textareaRef.current) {
+                              textareaRef.current.style.borderColor = ''
+                            }
+                          }, 300)
+                        }
+                      }
                     }}
                     onPaste={(e) => {
                       // Prevent default paste, then handle it manually to enforce limit
@@ -355,6 +376,19 @@ function AnimationPage() {
                       const newValue = combinedText.slice(0, 300) // Enforce 300 char limit
                       setHypothesis(newValue)
                       setCharCount(newValue.length)
+                      // Manually update the textarea value to ensure it's set
+                      if (textareaRef.current) {
+                        textareaRef.current.value = newValue
+                        // Show visual feedback if text was trimmed
+                        if (combinedText.length > 300) {
+                          textareaRef.current.style.borderColor = '#ff4444'
+                          setTimeout(() => {
+                            if (textareaRef.current) {
+                              textareaRef.current.style.borderColor = ''
+                            }
+                          }, 500)
+                        }
+                      }
                     }}
                     onInput={(e) => {
                       // Additional enforcement for any input method
@@ -363,13 +397,21 @@ function AnimationPage() {
                         const newValue = target.value.slice(0, 300)
                         setHypothesis(newValue)
                         setCharCount(newValue.length)
+                        target.value = newValue // Force update
                       }
                     }}
                     onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
+                    onBlur={() => {
+                      setIsFocused(false)
+                      // Ensure value is still within limit on blur
+                      if (hypothesis.length > 300) {
+                        const trimmed = hypothesis.slice(0, 300)
+                        setHypothesis(trimmed)
+                        setCharCount(300)
+                      }
+                    }}
                     placeholder="e.g., If plants are given more sunlight, then they will grow taller..."
                     rows={5}
-                    maxLength={300}
                     className="hypothesis-input"
                   />
                   <div className="input-glow" />

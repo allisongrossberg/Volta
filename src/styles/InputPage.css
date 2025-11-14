@@ -453,10 +453,12 @@
   overflow: visible !important; /* Ensure clip-path shapes are visible */
   transform: rotate(calc(var(--rotate) * 1deg)) translateZ(0) !important; /* Maintain transform context */
   isolation: isolate !important; /* Create new stacking context - prevents parent opacity/transform from affecting */
-  will-change: transform, opacity !important; /* Optimize for animation */
+  will-change: transform, opacity, clip-path !important; /* Optimize for animation including clip-path */
   /* Force hardware acceleration */
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
+  /* Ensure CSS variables update smoothly */
+  transition: none !important; /* Remove any transitions that might interfere with GSAP */
 }
 
 /* Make sure .left and .right respect CSS variables for animation */
@@ -474,6 +476,10 @@
 .submit-button.active .right:after {
   visibility: visible;
   /* Let CSS variables control background colors - NO !important */
+  /* Ensure clip-path animations work smoothly */
+  will-change: clip-path, transform;
+  /* Force GPU acceleration for clip-path */
+  transform: translate(var(--x, 0.4%), var(--y, 0)) translateZ(0);
 }
 
 .submit-button .left,
@@ -487,6 +493,8 @@
   transform: translate(calc(var(--plane-x) * 1px), calc(var(--plane-y) * 1px)) translateZ(0);
   pointer-events: none;
   visibility: visible;
+  /* Ensure no transitions interfere with GSAP animations */
+  transition: none;
 }
 
 .submit-button .left:before,
@@ -510,6 +518,11 @@
   );
   visibility: visible;
   opacity: 1;
+  /* Optimize for clip-path animations */
+  will-change: clip-path, transform;
+  /* Ensure clip-path updates are smooth */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .submit-button .left:after {
