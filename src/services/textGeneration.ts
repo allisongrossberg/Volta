@@ -67,10 +67,14 @@ Write with their eloquence, rhythm, and profound expression.`,
 - Homer's Iliad: "Sing, O goddess, the anger of Peleus' son Achilles, that brought countless ills upon the Achaeans"
 - Homer's Odyssey: "Tell me, O muse, of that ingenious hero who travelled far and wide after he had sacked the famous town of Troy"
 Write with their grandeur, narrative power, and epic scope.`,
-    pop_song: `Examples of the style we admire:
-- Taylor Swift: "I remember it all too well" (emotional storytelling), "Romeo, take me somewhere we can be alone" (relatable metaphors), catchy hooks and memorable choruses
-- Her ability to weave personal narratives with universal themes, creating emotional resonance
-Write with her lyrical flow, memorable choruses, and emotional resonance.`,
+    pop_song: `Examples of diverse song styles we admire:
+- Pop: Taylor Swift's emotional storytelling, Billie Eilish's introspective lyrics, Elton John's theatrical grandeur
+- Jazz/Soul: Aretha Franklin's powerful expression, Stevie Wonder's poetic depth
+- Rock: The Beatles' innovative wordplay, Queen's dramatic flair, Prince's sensuality, Stevie Nicks' mystical imagery
+- Folk: Bob Dylan's narrative storytelling and social commentary
+- Coffeehouse/Contemporary: John Mayer's introspective lyrics, Hozier's literary references
+- Timeless Icons: Elvis Presley's emotion, Billy Joel's storytelling, Whitney Houston's passion, Celine Dion's drama, Garth Brooks' relatability
+Write with authentic lyrical style, memorable hooks, emotional resonance, and the spirit of these diverse musical traditions. Include verse and chorus structure.`,
     fairytale: `Examples of the style we admire:
 - Old Scottish/Irish/Norse/Greek tales: "Once upon a time, in a land far away..." 
 - The Brothers Grimm, Hans Christian Andersen, ancient myths with their timeless quality
@@ -78,7 +82,7 @@ Write with their timeless quality, moral depth, and enchanting narrative style.`
     proverb: `Examples of the style we admire:
 - Buddhist proverbs: "The mind is everything. What you think you become."
 - African proverbs: "If you want to go fast, go alone. If you want to go far, go together."
-Write with their wisdom, brevity, and universal truth.`,
+Write with their wisdom, brevity, and universal truth. IMPORTANT: Keep it SHORT - maximum 3 sentences.`,
   };
 
   // Create enhanced prompt with style examples
@@ -94,7 +98,7 @@ Requirements:
 - Use metaphor, symbolism, and poetic imagery to express the scientific idea
 - Use the specified literary style authentically (refer to the examples above)
 - Be creative and evocative - transform the concept into art, not a direct translation
-- Keep it concise: maximum 200 words or 20 lines
+- Keep it concise: maximum 200 words or 20 lines (PROVERBS: maximum 3 sentences)
 - Make it beautiful, poetic, and memorable
 - Avoid simply restating the hypothesis - interpret it through the lens of the literary form
 - CRITICAL: Provide ONLY ONE literary work - do NOT give multiple options or alternatives
@@ -104,13 +108,15 @@ Requirements:
 Begin your ${formDescription} now (remember: ONLY ONE version, no alternatives):`;
 
   // Try multiple chat models in order of preference
-  // Removed non-working models: openai/gpt-oss-20b (unexpected format), google/flan-t5-large (not chat), mosaicml/mpt-7b-storywriter (not chat)
+  // Mix of different model families for variety
   const models = [
-    'meta-llama/Llama-3.2-3B-Instruct',
-    'meta-llama/Llama-3.1-8B-Instruct',
-    'mistralai/Mistral-7B-Instruct-v0.3',
-    'microsoft/Phi-3.5-mini-instruct',
-    'Qwen/Qwen2.5-Coder-32B-Instruct',
+    'google/gemma-2-2b-it', // Google's Gemma 2 instruct model - good for creative tasks
+    'tiiuae/falcon-7b-instruct', // Falcon instruct model - strong performance
+    'microsoft/Phi-3.5-mini-instruct', // Microsoft's efficient model
+    'meta-llama/Llama-3.2-3B-Instruct', // Llama fallback - proven to work
+    'meta-llama/Llama-3.1-8B-Instruct', // Larger Llama model
+    'Qwen/Qwen2.5-Coder-32B-Instruct', // Qwen model
+    // Note: mistralai/Mistral-7B-Instruct-v0.3 not supported by router (not a chat model)
   ];
   
   for (const modelName of models) {

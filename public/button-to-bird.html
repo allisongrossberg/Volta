@@ -6,9 +6,9 @@
     <title>Button Folding Into Bird</title>
     <style>
         .button {
-            --primary: #758A93;
-            --primary-dark: #5A6B73;
-            --primary-darkest: #4A565D;
+            --primary: #DDC57A;
+            --primary-dark: #C9AE60;
+            --primary-darkest: #B59748;
             --text: #FFFFFF;
             --text-opacity: 1;
             --success: #2B3044;
@@ -221,29 +221,33 @@
             nullTargetWarn: false 
         });
         
-        // Three.js Bird Geometry
+        // Three.js Bird Geometry (MATCH loading animation)
         function Bird() {
             const geometry = new THREE.BufferGeometry();
             
+            // Boid bird shape: arrow/triangle pointing forward with symmetric wings
             const vertices = new Float32Array([
-                5, 0, 0,
-                -5, -2, 1,
-                -5, 0, 0,
-                -5, -2, -1,
-                
-                0, 2, -6,
-                0, 2, 6
+                0, 0, 0,      // 0: nose (front point)
+                -1, -1, 0,    // 1: bottom left back
+                1, -1, 0,     // 2: bottom right back
+                -1, 1, 0,     // 3: top left back
+                -2, 0, 0,     // 4: left wing tip (will animate - Y coordinate)
+                2, 0, 0,      // 5: right wing tip (will animate - Y coordinate)
             ]);
             
             const indices = new Uint16Array([
-                0, 1, 2,
-                0, 2, 3,
-                0, 3, 4,
-                0, 4, 1
+                0, 1, 2,  // Nose to bottom back
+                0, 1, 4,  // Nose to left wing
+                0, 2, 5,  // Nose to right wing
+                0, 3, 4,  // Nose to top left wing
+                0, 3, 5,  // Nose to top right wing
+                1, 3, 4,  // Left side
+                2, 3, 5,  // Right side
             ]);
             
             geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+            geometry.computeVertexNormals();
             
             return geometry;
         }
@@ -301,14 +305,25 @@
             renderer.setClearColor(0x000000, 0);
 
             const birdGeometry = new Bird();
-            const birdMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0x758A93, 
-                side: THREE.DoubleSide 
+            const birdMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xDDC57A, // Golden tan to match button
+                shininess: 20,
+                transparent: true,
+                opacity: 1.0,
+                side: THREE.DoubleSide
             });
             bird = new THREE.Mesh(birdGeometry, birdMaterial);
-            bird.scale.set(2.5, 2.5, 2.5);
+            // Scale adjusted for OrthographicCamera - loading uses 1.2 with PerspectiveCamera
+            bird.scale.set(3, 3, 3);
             bird.phase = 0;
             scene.add(bird);
+            
+            // Add lights for MeshPhongMaterial
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
 
             boid = new Boid();
         }
@@ -391,8 +406,9 @@
                 bird.rotation.y = Math.atan2(-boid.velocity.z, boid.velocity.x);
                 bird.rotation.z = Math.asin(boid.velocity.y / boid.velocity.length());
                 
-                // Wing flapping
-                bird.phase = (bird.phase + (Math.max(0, bird.rotation.z) + 0.1)) % 6.28;
+                // Wing flapping - Match boid bird animation from loading screen
+                if (bird.phase === undefined) bird.phase = 0;
+                bird.phase += 0.3; // Consistent increment per frame
                 const flapAmount = Math.sin(bird.phase) * 5;
                 bird.geometry.attributes.position.array[13] = flapAmount;
                 bird.geometry.attributes.position.array[16] = flapAmount;

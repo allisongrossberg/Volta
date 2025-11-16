@@ -36,9 +36,10 @@ export async function generateImage(
   // 530 errors occur around 1000+ characters, so we use a conservative limit
   const MAX_URL_LENGTH = 950; // Conservative limit (530 errors at ~1000+, so stay well under)
   const BASE_URL_LENGTH = 95; // Base URL: https://image.pollinations.ai/prompt/?width=1024&height=1024&model=flux&nologo=true (without seed)
-  // Updated to match simplified prompt format (avoid "artistic" and "poetic" which trigger 530)
-  const PROMPT_TEMPLATE = `Illustration of this ${originalForm}: `.length;
-  const PROMPT_SUFFIX = `. Evocative style.`.length;
+  // Enhanced prompt with detailed instructions for impressionist/surrealist style
+  // Instructions: impressionist oil painting with expressive brushstrokes and clear subject
+  const PROMPT_TEMPLATE = `Impressionist surrealist abstract oil painting of this ${originalForm}: `.length;
+  const PROMPT_SUFFIX = `. Vibrant colors, expressive brushstrokes, softened suggestive forms. Visible texture, streaky paint, broken color, loose impressionist style while maintaining clear silhouette of the subject. Clearly recognizable subject with abstract expressionist treatment. Isolated on clean background.`.length;
   const MAX_ENCODED_PROMPT_LENGTH = MAX_URL_LENGTH - BASE_URL_LENGTH;
   
   // Start with a very conservative estimate (encoded text is typically 1.4x original)
@@ -51,9 +52,9 @@ export async function generateImage(
   // Truncate text to fit
   let textExcerpt = text.substring(0, maxTextLength);
   
-  // Build prompt - avoid words that trigger 530 errors ("artistic" at end, "poem" alone)
-  // Use simpler format that works with Pollinations.AI
-  let visualPrompt = `Illustration of this ${originalForm}: ${textExcerpt}. Evocative style.`;
+  // Build enhanced prompt with detailed instructions for impressionist/surrealist style
+  // Instructions help pollinations.ai create expressive oil painting with clear subject
+  let visualPrompt = `Impressionist surrealist abstract oil painting of this ${originalForm}: ${textExcerpt}. Vibrant colors, expressive brushstrokes, softened suggestive forms. Visible texture, streaky paint, broken color, loose impressionist style while maintaining clear silhouette of the subject. Clearly recognizable subject with abstract expressionist treatment. Isolated on clean background.`;
   let encodedPrompt = encodeURIComponent(visualPrompt);
   let testUrlLength = BASE_URL_LENGTH + encodedPrompt.length;
   
@@ -63,7 +64,7 @@ export async function generateImage(
   let iterations = 0;
   while (testUrlLength > MAX_URL_LENGTH && textExcerpt.length > 50 && iterations < 20) {
     textExcerpt = text.substring(0, Math.floor(textExcerpt.length * 0.9)); // Reduce by 10%
-    visualPrompt = `Illustration of this ${originalForm}: ${textExcerpt}. Evocative style.`;
+    visualPrompt = `Impressionist surrealist abstract oil painting of this ${originalForm}: ${textExcerpt}. Vibrant colors, expressive brushstrokes, softened suggestive forms. Visible texture, streaky paint, broken color, loose impressionist style while maintaining clear silhouette of the subject. Clearly recognizable subject with abstract expressionist treatment. Isolated on clean background.`;
     encodedPrompt = encodeURIComponent(visualPrompt);
     testUrlLength = BASE_URL_LENGTH + encodedPrompt.length;
     iterations++;
@@ -74,7 +75,7 @@ export async function generateImage(
   if (testUrlLength > MAX_URL_LENGTH) {
     console.warn(`⚠️ URL still too long after truncation (${testUrlLength} > ${MAX_URL_LENGTH}), using minimal text`);
     textExcerpt = text.substring(0, 100); // Fallback to very short excerpt
-    visualPrompt = `Illustration of this ${originalForm}: ${textExcerpt}. Evocative style.`;
+    visualPrompt = `Impressionist surrealist abstract oil painting of this ${originalForm}: ${textExcerpt}. Vibrant colors, expressive brushstrokes, softened suggestive forms. Visible texture, streaky paint, broken color, loose impressionist style while maintaining clear silhouette of the subject. Clearly recognizable subject with abstract expressionist treatment. Isolated on clean background.`;
   }
   
   console.log(`✅ Final text excerpt: ${textExcerpt.length} chars`);

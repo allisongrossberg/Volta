@@ -156,28 +156,34 @@ export default function ButtonToBirdThreeJS({
     directionalLight.position.set(1, 1, 1)
     scene.add(directionalLight)
 
-    // Create bird geometry (EXACT from button-to-bird.html)
+    // Create bird geometry (MATCH loading animation from ExplodingTextToBirds)
     function createBirdGeometry() {
       const geometry = new THREE.BufferGeometry()
       
+      // Boid bird shape: arrow/triangle pointing forward with symmetric wings
+      // Classic Boid shape: nose at front, body triangle, wings extend outward
       const vertices = new Float32Array([
-        5, 0, 0,
-        -5, -2, 1,
-        -5, 0, 0,
-        -5, -2, -1,
-        0, 2, -6,
-        0, 2, 6
+        0, 0, 0,      // 0: nose (front point)
+        -1, -1, 0,    // 1: bottom left back
+        1, -1, 0,     // 2: bottom right back
+        -1, 1, 0,     // 3: top left back
+        -2, 0, 0,     // 4: left wing tip (will animate - Y coordinate)
+        2, 0, 0,      // 5: right wing tip (will animate - Y coordinate)
       ])
       
       const indices = new Uint16Array([
-        0, 1, 2,
-        0, 2, 3,
-        0, 3, 4,
-        0, 4, 1
+        0, 1, 2,  // Nose to bottom back
+        0, 1, 4,  // Nose to left wing
+        0, 2, 5,  // Nose to right wing
+        0, 3, 4,  // Nose to top left wing
+        0, 3, 5,  // Nose to top right wing
+        1, 3, 4,  // Left side
+        2, 3, 5,  // Right side
       ])
       
       geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
       geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+      geometry.computeVertexNormals()
       
       return geometry
     }
@@ -187,13 +193,17 @@ export default function ButtonToBirdThreeJS({
     // For OrthographicCamera, coordinates are already in world space
     // No conversion needed - button position will be used directly
     
-    // Create bird mesh (EXACT from button-to-bird.html)
-    const birdMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x758A93, 
-      side: THREE.DoubleSide 
+    // Create bird mesh (MATCH loading animation from ExplodingTextToBirds)
+    const birdMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xDDC57A, // Golden tan to match button
+      shininess: 20,
+      transparent: true,
+      opacity: 1.0,
+      side: THREE.DoubleSide
     })
     const bird = new THREE.Mesh(birdGeometry, birdMaterial)
-    bird.scale.set(2.5, 2.5, 2.5)
+    // Scale adjusted for OrthographicCamera - loading uses 1.2 with PerspectiveCamera
+    bird.scale.set(3, 3, 3)
     ;(bird as any).phase = 0
     scene.add(bird)
     birdMeshRef.current = bird
@@ -511,9 +521,10 @@ export default function ButtonToBirdThreeJS({
           bird.rotation.z = Math.asin(boid.velocity.y / velLength)
         }
         
-        // Wing flapping (matching HTML reference)
+        // Wing flapping - Match boid bird animation (simple consistent speed)
         const birdAny = bird as any
-        birdAny.phase = (birdAny.phase + (Math.max(0, bird.rotation.z) + 0.1)) % 62.73
+        if (birdAny.phase === undefined) birdAny.phase = 0
+        birdAny.phase += 0.3 // Consistent increment like loading screen boids
         const flapAmount = Math.sin(birdAny.phase) * 5
         // Update wing vertices (indices 4 and 5 in the geometry)
         if (bird.geometry.attributes.position && bird.geometry.attributes.position.array) {
@@ -577,10 +588,10 @@ export default function ButtonToBirdThreeJS({
     buttonElement.style.setProperty('--plane-y', '0')
     
     // Reset background colors to ensure shapes are visible
-    buttonElement.style.setProperty('--left-wing-background', '#758A93')
-    buttonElement.style.setProperty('--right-wing-background', '#758A93')
-    buttonElement.style.setProperty('--left-body-background', '#758A93')
-    buttonElement.style.setProperty('--right-body-background', '#758A93')
+    buttonElement.style.setProperty('--left-wing-background', '#DDC57A')
+    buttonElement.style.setProperty('--right-wing-background', '#DDC57A')
+    buttonElement.style.setProperty('--left-body-background', '#DDC57A')
+    buttonElement.style.setProperty('--right-body-background', '#DDC57A')
     
     // Reset wing positions to rectangle (initial button state from HTML)
     buttonElement.style.setProperty('--left-wing-first-x', '0')
@@ -899,7 +910,9 @@ export default function ButtonToBirdThreeJS({
             transform: 'translateY(-50%)',
             textAlign: 'left',
             fontSize: '0.75rem',
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: 'Crimson Text, serif',
+            textTransform: 'uppercase' as const,
+            letterSpacing: '0.05em',
             color: '#000000',
             opacity: buttonTextVisible ? 1 : 0,
             transition: 'opacity 0.2s',

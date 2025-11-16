@@ -66,12 +66,15 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
   const allBirdsRevealingStartTimeRef = useRef<number>(0) // Track when all birds first entered revealing phase
   const firstRevealingBirdTimeRef = useRef<number>(0) // Track when first bird enters revealing phase
   const revealCompleteTriggeredRef = useRef<boolean>(false) // Track if onRevealComplete has been called
+  const safetyCheckTriggeredRef = useRef<boolean>(false) // Track if safety check has been executed
   const touchCanvasRef = useRef<HTMLCanvasElement | null>(null) // Off-screen canvas for cursor trail (Codrops approach)
   const touchTextureRef = useRef<THREE.Texture | null>(null) // Texture from touch canvas
   const touchContextRef = useRef<CanvasRenderingContext2D | null>(null) // Context for touch canvas
   const particleBoundsRef = useRef<{ minX: number, maxX: number, minY: number, maxY: number } | null>(null) // Cached bounds for cursor mapping
-  const lastMouseScreenPosRef = useRef<{ x: number, y: number }>({ x: 0, y: 0 }) // Last mouse screen position for smooth trail
-  const touchCanvasRadiusRef = useRef<number>(30) // Radius for cursor circle on touch canvas
+  const touchTrailRef = useRef<Array<{ x: number, y: number, age: number, force: number }>>([]) // Trail points with age and force (interactive-particles approach)
+  const touchMaxAgeRef = useRef<number>(10) // Max age for trail points (frames) - ultra short for instant response
+  const touchRadiusRef = useRef<number>(0.2) // Radius relative to canvas size (increased for stronger effect)
+  const lastMouseUpdateRef = useRef<{ x: number, y: number }>({ x: -1, y: -1 }) // Last mouse position that was added to trail
   const flightHasBegunRef = useRef<boolean>(false) // Track if we've called onFlightBegins
   const explosionStartedRef = useRef<boolean>(false) // Prevent double explosion in React Strict Mode
   const flockDelaySetRef = useRef<boolean>(false) // Track if flock delay has been set
@@ -522,10 +525,9 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
     // Create birds from character positions - one bird per character!
     createBirdsFromChars(charPositions, scene, camera)
 
-    // Mouse tracking for bird avoidance and particle interaction (Bruno Imbrizi approach)
+    // Mouse tracking for bird avoidance and particle interaction (interactive-particles approach)
+    // CRITICAL: Process mouse position IMMEDIATELY for zero-latency response
     const handleMouseMove = (e: MouseEvent) => {
-      lastMouseScreenPosRef.current = { x: e.clientX, y: e.clientY }
-      
       // Get container bounds for precise coordinate mapping
       const containerRect = containerRef.current?.getBoundingClientRect()
       if (!containerRect) return
@@ -553,51 +555,50 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
       mouseWorldPosRef.current.copy(worldPos)
       mousePositionRef.current.copy(worldPos) // Also update for particle system
       
-      // Draw cursor trail on touch canvas (Codrops approach) - only if particles are active
-      if (touchContextRef.current && touchCanvasRef.current && particleBoundsRef.current) {
-        const ctx = touchContextRef.current
-        const canvas = touchCanvasRef.current
+      // Add touch point to trail - this updates IMMEDIATELY for instant response
+      if (particleBoundsRef.current) {
         const bounds = particleBoundsRef.current
-        
         const boundsSizeX = bounds.maxX - bounds.minX || 1
         const boundsSizeY = bounds.maxY - bounds.minY || 1
         
-        // Map world position to canvas coordinates using cached bounds (Bruno Imbrizi approach)
-        const canvasX = ((worldPos.x - bounds.minX) / boundsSizeX) * canvas.width
-        const canvasY = canvas.height - ((worldPos.y - bounds.minY) / boundsSizeY) * canvas.height // Flip Y for canvas
+        // Map world position to normalized coordinates (0-1) for trail
+        const normalizedX = (worldPos.x - bounds.minX) / boundsSizeX
+        const normalizedY = (worldPos.y - bounds.minY) / boundsSizeY
         
-        // Clamp to canvas bounds
-        const clampedX = Math.max(0, Math.min(canvas.width, canvasX))
-        const clampedY = Math.max(0, Math.min(canvas.height, canvasY))
+        // Clamp to valid range
+        const clampedX = Math.max(0, Math.min(1, normalizedX))
+        const clampedY = Math.max(0, Math.min(1, normalizedY))
         
-        // Draw a bright circle at cursor position to create attraction
-        // Using a radial gradient that fades from bright white to gray
-        const gradient = ctx.createRadialGradient(
-          clampedX, clampedY, 0,
-          clampedX, clampedY, touchCanvasRadiusRef.current
-        )
-        gradient.addColorStop(0, '#ffffff') // Center bright white
-        gradient.addColorStop(0.5, '#cccccc') // Mid gradient
-        gradient.addColorStop(1, '#666666')  // Edges darker
+        // Minimal distance threshold for maximum responsiveness
+        const lastUpdate = lastMouseUpdateRef.current
+        const dx = clampedX - lastUpdate.x
+        const dy = clampedY - lastUpdate.y
+        const distSquared = dx * dx + dy * dy
+        const minDistSquared = 0.0001 // Very small threshold for instant response
         
-        ctx.fillStyle = gradient
-        ctx.beginPath()
-        ctx.arc(clampedX, clampedY, touchCanvasRadiusRef.current, 0, Math.PI * 2)
-        ctx.fill()
-        
-        // Add a brighter inner circle for more pronounced effect
-        ctx.fillStyle = '#ffffff'
-        ctx.beginPath()
-        ctx.arc(clampedX, clampedY, touchCanvasRadiusRef.current * 0.4, 0, Math.PI * 2)
-        ctx.fill()
-        
-        // Update texture
-        if (touchTextureRef.current) {
-          touchTextureRef.current.needsUpdate = true
+        if (distSquared > minDistSquared || lastUpdate.x === -1) {
+          // Calculate force based on movement speed
+          let force = 1
+          const lastPoint = touchTrailRef.current[touchTrailRef.current.length - 1]
+          if (lastPoint) {
+            const dx = lastPoint.x - clampedX
+            const dy = lastPoint.y - clampedY
+            const dd = dx * dx + dy * dy
+            force = Math.min(dd * 10000, 1)
+            force = Math.max(force, 0.3)
+          }
+          
+          // Add new point IMMEDIATELY - no RAF delay
+          touchTrailRef.current.push({ x: clampedX, y: clampedY, age: 0, force })
+          if (touchTrailRef.current.length > 3) { // Keep only 3 most recent points
+            touchTrailRef.current.shift()
+          }
+          lastMouseUpdateRef.current = { x: clampedX, y: clampedY }
         }
       }
     }
-    window.addEventListener('mousemove', handleMouseMove)
+    
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
 
     // Start animation
     animationStartTimeRef.current = Date.now()
@@ -704,11 +705,11 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         // Button bird is fully visible, brightly colored, and larger to stand out as leader
         const initialOpacity = isOffscreen ? 1.0 : 0.3 // Fully visible if flying in
         
-        // Button bird gets the same color as the button (#758A93)
+        // Button bird gets the same color as the button (#DDC57A)
         // Other birds get different shades of black and grey for dimension
         let birdColor: number
         if (isButtonBird) {
-          birdColor = 0x758A93 // Slate blue-gray to match button color
+          birdColor = 0xDDC57A // Golden tan to match button color
         } else {
           // Different shades of black and grey for dimension
           const shades = [
@@ -842,12 +843,17 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         return
       }
       
-      // Sample pixels from the image (matching Codrops tutorial approach)
+      // Sample pixels from the image for organic, abstract shape
       const validPixels: { x: number, y: number, r: number, g: number, b: number }[] = []
-      const threshold = 34 // Codrops uses hex #22 = decimal 34 for brightness threshold
-      const whiteThreshold = 220 // Pixels with all RGB values above this are considered white/light background (lowered to be more strict)
+      const whiteThreshold = 220 // Less aggressive - include more pixels to reduce gaps
+      const brightnessThreshold = 200 // Less restrictive - allow more pixels for better coverage
       
-      // First pass: collect pixels with sufficient brightness
+      // Subtle edge filtering for organic fade-into-background effect
+      // Use 12% of image size for fade zone - subtle, not overdone
+      const edgeFadeZone = Math.min(canvas.width, canvas.height) * 0.12
+      
+      // First pass: collect pixels with sufficient brightness for organic shape
+      // Add randomness to create more abstract, less uniform distribution
       for (let y = 0; y < canvas.height; y++) {
         for (let x = 0; x < canvas.width; x++) {
           const idx = (y * canvas.width + x) * 4
@@ -856,32 +862,72 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           const b = pixels[idx + 2]
           const a = pixels[idx + 3]
           
-          // Only include pixels with sufficient opacity AND brightness
-          // CRITICAL: Exclude near-white pixels (background) - all RGB channels must not be too high
+          // Calculate overall brightness for better filtering
+          const brightness = (r + g + b) / 3
+          
+          // Include pixels with sufficient opacity AND brightness
+          // Filtering to exclude background while maximizing coverage
           const isNearWhite = r > whiteThreshold && g > whiteThreshold && b > whiteThreshold
-          if (a > 128 && r > threshold && !isNearWhite) {
+          const hasLowBrightness = brightness < brightnessThreshold // Exclude light/washed out pixels
+          const isInteresting = !isNearWhite && hasLowBrightness
+          
+          // Subtle edge filtering: gradually reduce probability near edges for organic fade
+          const distFromLeft = x
+          const distFromRight = canvas.width - x
+          const distFromTop = y
+          const distFromBottom = canvas.height - y
+          const minDistFromEdge = Math.min(distFromLeft, distFromRight, distFromTop, distFromBottom)
+          
+          // Calculate fade probability: 1.0 in center, gradually decreasing near edges
+          // Use smoothstep for natural fade curve (starts slow, accelerates near edge)
+          let edgeFadeProbability = 1.0
+          if (minDistFromEdge < edgeFadeZone) {
+            const fadeRatio = minDistFromEdge / edgeFadeZone
+            // Smoothstep: smooth fade curve for natural transition
+            edgeFadeProbability = fadeRatio * fadeRatio * (3 - 2 * fadeRatio)
+          }
+          
+          // Include pixels with probability based on edge distance (subtle fade effect)
+          // Include all interesting pixels to maximize coverage and minimize gaps
+          if (a > 150 && isInteresting && Math.random() < edgeFadeProbability) {
             validPixels.push({ x, y, r, g, b })
           }
         }
       }
       
-      // Create particles from image pixels (same strategy as main image)
-      let sampleStep = 1
+      // Create particles from image pixels - optimized for visual quality and performance
+      // THREE.Points with BufferGeometry is highly efficient (single GPU draw call)
+      // More particles with better distribution to minimize gaps and capture detail
+      const TARGET_PARTICLE_COUNT = 90000 // Reduced for better performance during transition and cursor interaction
       
-      if (validPixels.length > 50000) {
-        sampleStep = Math.max(1, Math.floor(validPixels.length / 50000))
-      } else if (validPixels.length > 20000) {
-        sampleStep = Math.max(1, Math.floor(validPixels.length / 30000))
-      }
-      
+      // Sample pixels up to TARGET_PARTICLE_COUNT
+      // Use random sampling to get good distribution when we have more valid pixels than target
       const sampledPixels: { x: number, y: number, r: number, g: number, b: number }[] = []
       
-      if (sampleStep === 1) {
-        sampledPixels.push(...validPixels)
-      } else {
-        for (let i = 0; i < validPixels.length; i += sampleStep) {
+      if (validPixels.length <= TARGET_PARTICLE_COUNT) {
+        // Use all valid pixels if we have fewer than target
+        for (let i = 0; i < validPixels.length; i++) {
           sampledPixels.push(validPixels[i])
         }
+      } else {
+        // If we have more valid pixels than target, randomly sample up to TARGET_PARTICLE_COUNT
+        // Use optimized Fisher-Yates shuffle - only shuffle what we need
+        const indices: number[] = []
+        for (let i = 0; i < validPixels.length; i++) {
+          indices.push(i)
+        }
+        // Partial Fisher-Yates shuffle - only shuffle first TARGET_PARTICLE_COUNT elements
+        for (let i = 0; i < TARGET_PARTICLE_COUNT; i++) {
+          const j = i + Math.floor(Math.random() * (validPixels.length - i))
+          const temp = indices[i]
+          indices[i] = indices[j]
+          indices[j] = temp
+        }
+        // Take first TARGET_PARTICLE_COUNT indices
+        for (let i = 0; i < TARGET_PARTICLE_COUNT; i++) {
+          sampledPixels.push(validPixels[indices[i]])
+        }
+        console.log(`📊 Sampled ${TARGET_PARTICLE_COUNT} particles from ${validPixels.length} valid pixels`)
       }
       
       console.log(`📊 Sampling ${sampledPixels.length} particles from ${validPixels.length} valid pixels (fallback image: ${canvas.width}x${canvas.height})`)
@@ -938,8 +984,14 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         // Clamp to ensure particles stay within image bounds
         const normalizedX = Math.max(0, Math.min(1, pixel.x / canvas.width))
         const normalizedY = Math.max(0, Math.min(1, pixel.y / canvas.height))
-        const x = (normalizedX - 0.5) * width3D
-        const y = (0.5 - normalizedY) * height3D
+        
+        // Add subtle spatial jitter to break up grid patterns (very small to maintain image quality)
+        const jitterAmount = 0.002 // 0.2% of image width/height
+        const jitterX = (Math.random() - 0.5) * jitterAmount
+        const jitterY = (Math.random() - 0.5) * jitterAmount
+        
+        const x = (normalizedX + jitterX - 0.5) * width3D
+        const y = (0.5 - normalizedY - jitterY) * height3D
         const z = (Math.random() - 0.5) * 0.5 // Reduced Z variation to keep particles in plane
         
         targetPositions.push(new THREE.Vector3(x, y, z))
@@ -1083,10 +1135,11 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
     geometry.setAttribute('brightness', new THREE.BufferAttribute(brightnessValues, 1))
     imageParticleGeometryRef.current = geometry
     
-    // Create off-screen canvas for cursor trail (Codrops approach)
+    // Create off-screen canvas for cursor trail (interactive-particles approach)
+    // Very small canvas (32x32) for maximum performance and instant updates
     const touchCanvas = document.createElement('canvas')
-    touchCanvas.width = 512
-    touchCanvas.height = 512
+    touchCanvas.width = 32
+    touchCanvas.height = 32
     const touchContext = touchCanvas.getContext('2d')
     if (!touchContext) {
       console.error('❌ Could not get 2D context for touch canvas')
@@ -1099,8 +1152,9 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
     
     // Create texture from touch canvas
     const touchTexture = new THREE.CanvasTexture(touchCanvas)
-    touchTexture.minFilter = THREE.LinearFilter
-    touchTexture.magFilter = THREE.LinearFilter
+    touchTexture.minFilter = THREE.NearestFilter // Fastest filtering
+    touchTexture.magFilter = THREE.NearestFilter // Fastest filtering
+    touchTexture.generateMipmaps = false // Skip mipmap generation for speed
     touchTextureRef.current = touchTexture
     
     const material = new THREE.ShaderMaterial({
@@ -1109,7 +1163,7 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
         uMousePos: { value: new THREE.Vector3(0, 0, 0) },
         uMouseRadius: { value: mouseRadiusRef.current },
-        uSize: { value: 5.0 }, // Base size multiplier (reduced for smaller particles)
+        uSize: { value: 3.0 }, // Base size multiplier (slightly increased to ensure better coverage)
         uTouch: { value: touchTexture }, // Cursor trail texture (Codrops approach)
         uBoundsMin: { value: new THREE.Vector2(-50, -50) }, // Will be updated after calculating bounds
         uBoundsMax: { value: new THREE.Vector2(50, 50) } // Will be updated after calculating bounds
@@ -1155,32 +1209,54 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
             // Sample the touch texture to get cursor influence
             float t = texture2D(uTouch, puv).r;
             
-            // Apply displacement based on texture value (Codrops approach)
-            // The texture value (t) represents how close the cursor trail is to this particle
-            // Use subtle displacement for gentle bounce effect
-            float rndz = (fract(sin(dot(pos.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 2.0;
-            float angle = (fract(sin(dot(pos.xy, vec2(12.9898, 78.233))) * 43758.5453) * 2.0 - 1.0) * 3.14159;
+            // Variable particle size based on brightness + randomness to break up patterns
+            // Invert brightness so darker areas = larger particles
+            float invertedBrightness = 1.0 - brightness;
             
-            // Subtle displacement for gentle particle bounce (Codrops approach)
-            // Small multiplier (5.0) creates gentle motion without distortion
-            float displacement = t * 5.0 * rndz;
-            pos.z += displacement;
-            pos.x += cos(angle) * t * 5.0;
-            pos.y += sin(angle) * t * 5.0;
+            // OPTIMIZATION: Pre-compute random seed once and reuse for multiple calculations
+            float randomSeed = dot(pos.xy, vec2(12.9898, 78.233));
+            // Add strong random size variation for organic look with visible gaps
+            float randomSize = fract(sin(randomSeed) * 43758.5453);
+            
+            // RATIO-BASED DISTRIBUTION: 2/3 small, 1/3 medium/large
+            float tierSelector = fract(sin(dot(pos.xy, vec2(78.233, 12.9898)) + 50.0) * 43758.5453);
+            
+            float sizeVariation;
+            if (tierSelector < 0.667) {
+              // 2/3 of particles: SMALL and VERY SMALL (scaled down for more detail)
+              float biasedSmall = pow(randomSize, 1.3); // Slight bias toward very small
+              sizeVariation = 0.12 + biasedSmall * 0.48; // Range: 0.12 to 0.6 (scaled down from 0.15-0.8)
+            } else {
+              // 1/3 of particles: MEDIUM and LARGE (scaled down proportionally)
+              float randomLarge = fract(sin(dot(pos.xy, vec2(12.9898, 78.233)) + 200.0) * 43758.5453);
+              float largeBase = 0.6 + invertedBrightness * 0.3; // Base 0.6-0.9 (scaled down)
+              float largeRandom = randomLarge * 0.6; // Additional 0-0.6 (scaled down)
+              sizeVariation = largeBase + largeRandom; // Range: 0.6 to 1.5 (scaled down from 0.8-2.0)
+            }
+            
+            // OPTIMIZED: Maximum displacement for instant visual feedback
+            // Direct Z-axis displacement - jump up and return quickly
+            // Also add slight z-offset based on size so small particles render in front
+            // OPTIMIZATION: Pre-compute zOffset calculation
+            float zOffset = (1.0 - sizeVariation * 0.666667) * 0.3; // Smaller particles = slightly forward (1/1.5 = 0.666667)
+            pos.z += zOffset;
+            
+            // OPTIMIZATION: Only calculate random displacement if cursor interaction is significant
+            // Use a simpler random calculation for cursor interaction to reduce shader complexity
+            if (t > 0.01) {
+              // OPTIMIZATION: Use simpler random calculation (reuse seed from sizeVariation)
+              float rnd = fract(sin(randomSeed + 100.0) * 43758.5453); // Offset seed to get different random value
+              // Stronger displacement (50.0) for more visible jump
+              pos.z += t * 50.0 * (rnd - 0.5);
+            }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             gl_Position = projectionMatrix * mvPosition;
-            
-            // Variable particle size based on brightness - better diversity
-            // Invert brightness so darker areas = larger particles
-            float invertedBrightness = 1.0 - brightness;
-            // Create more size variation: use a wider range (0.3 to 1.0) instead of fixed minimum
-            float sizeVariation = 0.3 + invertedBrightness * 0.7; // Range from 0.3 to 1.0
             float psize = sizeVariation * uSize;
             // Perspective attenuation
             psize *= uPixelRatio * (400.0 / -mvPosition.z);
-            // Ensure minimum size for visibility but allow smaller particles
-            psize = max(psize, 1.5);
+            // Very low minimum size to allow truly tiny particles for fine detail
+            psize = max(psize, 0.2);
             gl_PointSize = psize;
           }
         `,
@@ -1189,6 +1265,11 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           varying float vOpacity;
           
           void main() {
+            // CRITICAL: Discard particles with zero or near-zero opacity immediately
+            // This prevents origin particles (which have opacity 0) from rendering
+            // Even if position check fails, this ensures they're never visible
+            if (vOpacity < 0.001) discard;
+            
             // Circular particles (matching Codrops tutorial style exactly)
             vec2 center = gl_PointCoord - vec2(0.5);
             float dist = length(center);
@@ -1204,6 +1285,9 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
             
             // Apply per-particle opacity (fades in as birds reach them)
             alpha *= vOpacity;
+            
+            // Final safeguard: discard if final alpha is too low (prevents any rendering artifacts)
+            if (alpha < 0.001) discard;
             
             // Use actual image colors (matching Codrops tutorial)
             // For white background: we can use the colors as-is, or slightly darken for better contrast
@@ -1244,6 +1328,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
     const particleSystem = new THREE.Points(geometry, material)
     particleSystem.position.z = 0
     particleSystem.visible = false // Start invisible - birds will morph into particles
+    // OPTIMIZATION: Enable frustum culling to skip rendering particles outside view
+    particleSystem.frustumCulled = true
     scene.add(particleSystem)
     imageParticleSystemRef.current = particleSystem
     
@@ -1306,9 +1392,9 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           if (isFlyingIn) {
             // Button bird: Make visible immediately and fly in first
             if (isButtonBird) {
-              // Button bird is always visible, slightly larger, and slate blue-gray
+              // Button bird is always visible, slightly larger, and golden tan
               ;(bird.mesh.material as THREE.MeshPhongMaterial).opacity = 1
-              ;(bird.mesh.material as THREE.MeshPhongMaterial).color.setHex(0x758A93) // Slate blue-gray to match button color
+              ;(bird.mesh.material as THREE.MeshPhongMaterial).color.setHex(0xDDC57A) // Golden tan to match button color
               bird.mesh.scale.setScalar(1.2) // Larger button bird (doubled)
               
               // Apply velocity to move bird (flying in from offscreen)
@@ -1502,8 +1588,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           
           // Button bird gets a strong forward bias to stay ahead of the flock
           if (bird.isButtonBird) {
-            // Ensure button bird stays slate blue-gray and slightly larger
-            ;(bird.mesh.material as THREE.MeshPhongMaterial).color.setHex(0x758A93) // Slate blue-gray to match button color
+            // Ensure button bird stays golden tan and slightly larger
+            ;(bird.mesh.material as THREE.MeshPhongMaterial).color.setHex(0xDDC57A) // Golden tan to match button color
             bird.mesh.scale.setScalar(1.2) // Button bird larger (doubled)
             
             // Calculate average position of other birds
@@ -1837,9 +1923,10 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
               if (positionAttr && opacityAttr) {
                 // Always update position and opacity to ensure they stay visible
                 positionAttr.setXYZ(bird.faceIndex, bird.exitTarget!.x, bird.exitTarget!.y, bird.exitTarget!.z)
-                opacityAttr.setX(bird.faceIndex, 1.0) // CRITICAL: Always set to 1.0
-                positionAttr.needsUpdate = true
-                opacityAttr.needsUpdate = true
+                
+                // CRITICAL: Never show particles at origin - check target position
+                const isAtOrigin = Math.abs(bird.exitTarget!.x) < 0.1 && Math.abs(bird.exitTarget!.y) < 0.1 && Math.abs(bird.exitTarget!.z) < 0.1
+                opacityAttr.setX(bird.faceIndex, isAtOrigin ? 0.0 : 1.0) // Only set to 1.0 if NOT at origin
                 // Ensure velocity is zero to prevent any movement/drift
                 if (bird.particleVelocity) {
                   bird.particleVelocity.set(0, 0, 0)
@@ -1888,10 +1975,10 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
             
             // Color morphing: transition from black to target color over full 6 seconds
             // This creates a smooth color change as birds fly around and swoop
-            // BUTTON BIRD: Stay slate blue-gray throughout the morph, then transition to target particle color
+            // BUTTON BIRD: Stay golden tan throughout the morph, then transition to target particle color
             if (bird.isButtonBird) {
-              // Button bird stays slate blue-gray - morph from slate blue-gray to target particle color
-              const buttonBirdColor = new THREE.Color(0x758A93) // Slate blue-gray to match button color
+              // Button bird stays golden tan - morph from golden tan to target particle color
+              const buttonBirdColor = new THREE.Color(0xDDC57A) // Golden tan to match button color
               if (bird.targetColor) {
                 // Blend slate blue-gray with target color for seamless transition
                 const currentColor = new THREE.Color()
@@ -1952,14 +2039,29 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                   
                   // Combine time-based fade with distance-based visibility
                   const particleOpacity = easedProgress * distanceFactor
-                  opacityAttr.setX(bird.faceIndex, Math.min(1.0, particleOpacity))
                   
                   // CRITICAL: During morph, particle stays at bird's current position
                   // This ensures particles appear where birds are, NOT at target positions
                   // Particles will only move to targets AFTER morph completes
-                  // Always update position to bird position during morph (even if opacity is 0)
+                  // Always update position to bird position during morph FIRST (even if opacity is 0)
                   // This ensures particle is ready at bird position when it becomes visible
                   positionAttr.setXYZ(bird.faceIndex, bird.position.x, bird.position.y, bird.position.z)
+                  
+                  // CRITICAL: Never show particles at origin (0,0,0) - prevents center dot artifact
+                  // Check position AFTER updating it to ensure we're checking the current position
+                  // Use larger threshold to catch particles very close to origin
+                  const currentX = bird.position.x
+                  const currentY = bird.position.y
+                  const currentZ = bird.position.z
+                  const isAtOrigin = Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1 && Math.abs(currentZ) < 0.1
+                  
+                  // ALWAYS keep particles at origin invisible, regardless of any other logic
+                  if (isAtOrigin) {
+                    opacityAttr.setX(bird.faceIndex, 0.0)
+                  } else {
+                    // Only set opacity if particle is NOT at origin
+                    opacityAttr.setX(bird.faceIndex, Math.min(1.0, particleOpacity))
+                  }
                   
                   // Make particle system visible when first particle appears
                   // This prevents the shape from appearing before birds morph
@@ -1972,9 +2074,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                   opacityAttr.setX(bird.faceIndex, 0.0)
                   positionAttr.setXYZ(bird.faceIndex, bird.position.x, bird.position.y, bird.position.z)
                 }
-                
-                opacityAttr.needsUpdate = true
-                positionAttr.needsUpdate = true
                 
                 // CRITICAL: Ensure particle system stays visible (important for white background)
                 // Always keep it visible once any particle appears
@@ -2045,8 +2144,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                   // Particle should already be visible from the morph phase
                   // But ensure it's fully visible now
                   opacityAttr.setX(bird.faceIndex, 1.0)
-                  positionAttr.needsUpdate = true
-                  opacityAttr.needsUpdate = true
                   
                   // Mark that particle is ready to move to target and start morph timer
                   // Only set these once to prevent duplicate animations
@@ -2205,9 +2302,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                   // CRITICAL: Keep particle fully visible during movement
                   opacityAttr.setX(bird.faceIndex, 1.0)
                   
-                  positionAttr.needsUpdate = true
-                  opacityAttr.needsUpdate = true
-                  
                   // Check if particle has reached target (or close enough)
                   const finalDistToTarget = newParticlePos.distanceTo(targetPos)
                   // Increase threshold to 8.0 units to account for flocking interference
@@ -2216,8 +2310,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                     // Particle has reached target - lock it in place
                     positionAttr.setXYZ(bird.faceIndex, targetPos.x, targetPos.y, targetPos.z)
                     opacityAttr.setX(bird.faceIndex, 1.0) // Ensure it stays visible
-                    positionAttr.needsUpdate = true
-                    opacityAttr.needsUpdate = true
                     ;(bird as any).atTarget = true
                     bird.particleMorphProgress = 1.0
                     // Stop particle velocity to prevent drift
@@ -2421,6 +2513,19 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           bird.mesh.geometry.attributes.position.needsUpdate = true
         }
       })
+      
+      // OPTIMIZATION: Update particle attributes once per frame after all bird updates
+      // This is much more efficient than setting needsUpdate for each bird
+      // OPTIMIZATION: Only update if particles are actually being modified (during transition)
+      const hasRevealingBirds = birds.some(b => b.animationPhase === 'revealing')
+      if (imageParticleGeometryRef.current && hasRevealingBirds) {
+        const positionAttr = imageParticleGeometryRef.current.getAttribute('position') as THREE.BufferAttribute
+        const opacityAttr = imageParticleGeometryRef.current.getAttribute('opacity') as THREE.BufferAttribute
+        if (positionAttr && opacityAttr) {
+          positionAttr.needsUpdate = true
+          opacityAttr.needsUpdate = true
+        }
+      }
 
       // Check if most birds have taken flight before fading UI
       // Fade as soon as the last word/letter takes off
@@ -2475,18 +2580,75 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         }
       }
 
-      // Fade touch canvas over time to create trail effect (Codrops approach)
-      if (touchContextRef.current && touchCanvasRef.current) {
+      // Update touch texture trail (interactive-particles approach)
+      // OPTIMIZATION: Only update when trail points exist
+      const trail = touchTrailRef.current
+      if (trail.length > 0 && touchContextRef.current && touchCanvasRef.current) {
         const ctx = touchContextRef.current
         const canvas = touchCanvasRef.current
+        const maxAge = touchMaxAgeRef.current
         
-        // Fade the canvas by drawing a semi-transparent black rectangle over it
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        // Age points and remove old ones - limit trail length for snappier response
+        for (let i = trail.length - 1; i >= 0; i--) {
+          trail[i].age++
+          if (trail[i].age > maxAge) {
+            trail.splice(i, 1)
+          }
+        }
         
-        // Update texture
-        if (touchTextureRef.current) {
-          touchTextureRef.current.needsUpdate = true
+        // Limit trail to most recent points for instant response and better performance
+        const maxTrailLength = 5
+        if (trail.length > maxTrailLength) {
+          trail.splice(0, trail.length - maxTrailLength)
+        }
+        
+        // Only clear and redraw if we have active points
+        if (trail.length > 0) {
+          // Clear canvas completely
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          
+          // Draw trail points with age-based intensity
+          const baseRadius = canvas.width * touchRadiusRef.current
+          
+          for (const point of trail) {
+            // INSTANT RESPONSE: No fade-in, immediate full intensity
+            let intensity = 1.0
+            
+            // Fast exponential decay based on age for quick return
+            const ageRatio = point.age / maxAge
+            intensity = Math.pow(1 - ageRatio, 4) // Very fast decay (power of 4)
+            
+            intensity *= point.force
+            
+            // Skip very low intensity (performance)
+            if (intensity < 0.01) continue
+            
+            const pos = {
+              x: point.x * canvas.width,
+              y: (1 - point.y) * canvas.height
+            }
+            
+            const radius = baseRadius * intensity
+            
+            // Draw radial gradient circle
+            const grd = ctx.createRadialGradient(
+              pos.x, pos.y, radius * 0.25,
+              pos.x, pos.y, radius
+            )
+            grd.addColorStop(0, 'rgba(255, 255, 255, 0.2)')
+            grd.addColorStop(1, 'rgba(0, 0, 0, 0.0)')
+            
+            ctx.beginPath()
+            ctx.fillStyle = grd
+            ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2)
+            ctx.fill()
+          }
+          
+          // Update texture only when we drew something
+          if (touchTextureRef.current) {
+            touchTextureRef.current.needsUpdate = true
+          }
         }
       }
       
@@ -2603,34 +2765,35 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
                 // Position particle at target
                 positionAttr.setXYZ(i, target.x, target.y, target.z)
                 
-                // Dynamic fade-in with random timing variations
-                const currentOpacity = opacityAttr.getX(i)
-                const baseDelay = (1.0 - particleData.priority) * 2.0
+                // CRITICAL: Never show particles at origin (0,0,0) - prevents center dot artifact
+                // Use larger threshold to catch particles very close to origin
+                const isAtOrigin = Math.abs(target.x) < 0.1 && Math.abs(target.y) < 0.1 && Math.abs(target.z) < 0.1
+                if (isAtOrigin) {
+                  // Skip this particle - don't make it visible if it's at origin
+                  opacityAttr.setX(i, 0.0)
+                  continue
+                }
                 
-                // Add random timing variation that changes over time
-                const randomVariation = Math.sin(elapsed * 1.5 + i * 0.05) * 0.5 // ±0.5 second variation
-                const fadeDelay = baseDelay + randomVariation
-                const timeSinceStart = elapsed - 12.0 - fadeDelay
+                // Faster fade-in to ensure all particles become visible quickly
+                const currentOpacity = opacityAttr.getX(i)
+                
+                // Reduced delay - start fading much sooner
+                const baseDelay = (1.0 - particleData.priority) * 0.5 // Reduced from 2.0 to 0.5
+                const fadeDelay = baseDelay
+                const timeSinceStart = elapsed - 8.0 - fadeDelay // Reduced from 12.0 to 8.0
                 
                 if (timeSinceStart > 0) {
-                  // Variable fade speed based on bird activity nearby
-                  let localBirdActivity = 0
-                  revealingBirds.forEach(bird => {
-                    const birdDist = Math.sqrt(
-                      (target.x - bird.position.x) ** 2 + 
-                      (target.y - bird.position.y) ** 2
-                    )
-                    if (birdDist < 30.0) {
-                      localBirdActivity += (1.0 - birdDist / 30.0) * bird.velocity.length() / 10.0
-                    }
-                  })
-                  
-                  const baseFadeSpeed = 1.5
-                  const activityBoost = Math.min(2.0, localBirdActivity * 3.0) // Up to 3x faster near active birds
-                  const fadeSpeed = baseFadeSpeed + activityBoost
+                  // Very fast fade speed to ensure all particles reach full opacity quickly
+                  const baseFadeSpeed = 8.0 // Much faster (was 3.0)
+                  const fadeSpeed = baseFadeSpeed
                   
                   const targetOpacity = 1.0
                   const newOpacity = Math.min(targetOpacity, currentOpacity + fadeSpeed * (1/60))
+                  opacityAttr.setX(i, newOpacity)
+                } else if (elapsed > 10.0) {
+                  // After 10 seconds, force all unassigned particles to start fading immediately
+                  const fadeSpeed = 10.0 // Very fast forced fade
+                  const newOpacity = Math.min(1.0, currentOpacity + fadeSpeed * (1/60))
                   opacityAttr.setX(i, newOpacity)
                 } else {
                   // Not ready to fade in yet
@@ -2641,6 +2804,38 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
               positionAttr.needsUpdate = true
               opacityAttr.needsUpdate = true
             }
+          }
+        }
+        
+        // Safety check: After 15 seconds, force ALL particles to full opacity (only once)
+        if (elapsed > 15.0 && !safetyCheckTriggeredRef.current && imageParticleGeometryRef.current) {
+          const opacityAttr = imageParticleGeometryRef.current.getAttribute('opacity') as THREE.BufferAttribute
+          const positionAttr = imageParticleGeometryRef.current.getAttribute('position') as THREE.BufferAttribute
+          if (opacityAttr && positionAttr) {
+            let allVisible = true
+            for (let i = 0; i < opacityAttr.count; i++) {
+              // CRITICAL: Never force particles at origin to be visible (prevents center dot)
+              const x = positionAttr.getX(i)
+              const y = positionAttr.getY(i)
+              const z = positionAttr.getZ(i)
+              const isAtOrigin = Math.abs(x) < 0.1 && Math.abs(y) < 0.1 && Math.abs(z) < 0.1
+              
+              if (isAtOrigin) {
+                // Keep particles at origin invisible
+                opacityAttr.setX(i, 0.0)
+              } else {
+                const opacity = opacityAttr.getX(i)
+                if (opacity < 1.0) {
+                  allVisible = false
+                  opacityAttr.setX(i, 1.0) // Force to full opacity
+                }
+              }
+            }
+            if (!allVisible) {
+              opacityAttr.needsUpdate = true
+              console.log(`✅ Safety check: Forced all non-origin particles to full opacity after 15s`)
+            }
+            safetyCheckTriggeredRef.current = true // Mark as executed
           }
         }
         
@@ -2734,6 +2929,19 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           setShowFinalContent(true)
           if (onRevealComplete && !revealCompleteTriggeredRef.current) {
             revealCompleteTriggeredRef.current = true
+            
+            // CRITICAL: Ensure ALL particles are at full opacity before revealing complete
+            if (imageParticleGeometryRef.current) {
+              const opacityAttr = imageParticleGeometryRef.current.getAttribute('opacity') as THREE.BufferAttribute
+              if (opacityAttr) {
+                console.log('✅ Setting all particles to full opacity for final reveal')
+                for (let i = 0; i < opacityAttr.count; i++) {
+                  opacityAttr.setX(i, 1.0) // Force all particles to full opacity
+                }
+                opacityAttr.needsUpdate = true
+              }
+            }
+            
             onRevealComplete()
           }
         }
@@ -2748,18 +2956,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         } else if (!particlesFormedTriggeredRef.current) {
           console.warn(`⚠️ particlesReady=true but onParticlesFormed not provided or already triggered`)
         }
-      }
-
-      // Fade touch canvas texture for natural cursor trail decay (Codrops approach)
-      // This creates the smooth fade-out effect instead of persistent trails
-      if (touchContextRef.current && touchCanvasRef.current) {
-        const ctx = touchContextRef.current
-        const canvas = touchCanvasRef.current
-        
-        // Create slight opacity fade by drawing a semi-transparent black rectangle
-        // This gradually fades out the cursor trail over time
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.015)' // Very subtle fade each frame (~98.5% retention per frame)
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
       }
 
       // Render the scene - ensure background is cleared properly
@@ -2780,13 +2976,13 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
   
   return (
     <div ref={containerRef} style={{ 
-      // Fixed positioning accounting for sidebar (201px) and header (80px)
+      // Fixed positioning accounting for sidebar (200px + 1px border = 201px) and header (80px)
       position: 'fixed',
       top: '80px', // Below header
-      left: '201px', // Start at sidebar edge (no gap)
+      left: '200px', // Start at sidebar edge (200px sidebar, will overlap 1px border)
       right: 0, // Extend all the way to right edge
       bottom: 0,
-      width: 'calc(100% - 201px)', // Full width from sidebar to right edge
+      width: 'calc(100% - 200px)', // Full width from sidebar to right edge (accounting for 200px sidebar)
       height: 'calc(100vh - 80px)', // Account for header
       margin: 0,
       padding: 0,
