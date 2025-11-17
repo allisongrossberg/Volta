@@ -199,7 +199,7 @@ export default function ButtonToBirdThreeJS({
       shininess: 20,
       transparent: true,
       opacity: 1.0,
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide 
     })
     const bird = new THREE.Mesh(birdGeometry, birdMaterial)
     // Scale adjusted for OrthographicCamera - loading uses 1.2 with PerspectiveCamera

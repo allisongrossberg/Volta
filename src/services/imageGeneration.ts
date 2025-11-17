@@ -1,13 +1,10 @@
 /**
  * Image Generation Service
  * Uses Pollinations.AI (free, no API key required) for image generation
- * Optimized for viewport size, no background, high contrast for particle animation
- * Matches original API logic from commit 0b80fee
  */
 
 /**
  * Generate image from text using Pollinations.AI
- * Matches original API logic from commit 0b80fee
  */
 export async function generateImage(
   text: string,
@@ -15,8 +12,6 @@ export async function generateImage(
   _viewportHeight?: number,
   literaryForm?: string
 ): Promise<string | null> {
-  // Match original format from commit 0b80fee exactly
-  // Original used: `Create a beautiful, artistic illustration that captures the essence of this ${literaryForm}: ${literaryText.substring(0, 800)}. The image should be evocative, poetic, and match the tone and style of the text.`
   // NOTE: URL encoding expands text significantly (spaces become %20, newlines %0A, etc.)
   // Pollinations.AI has URL length limits - need to dynamically truncate to ensure URL stays under ~2000 chars
   // Map current form values to original form values

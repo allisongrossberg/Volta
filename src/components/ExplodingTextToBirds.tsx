@@ -991,7 +991,19 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         const jitterY = (Math.random() - 0.5) * jitterAmount
         
         const x = (normalizedX + jitterX - 0.5) * width3D
-        const y = (0.5 - normalizedY - jitterY) * height3D
+        // Align top of art with sidebar "001" position
+        // Sidebar "001" is at 3rem (48px) from container top (container starts below 80px header)
+        // Convert to world space: position art so top edge (normalizedY=0) aligns with "001"
+        const sidebarTopPadding = 48 // 3rem in pixels
+        const targetTopPosition = sidebarTopPadding // "001" is 48px from container top
+        // Convert pixel position to world space Y coordinate
+        // World space: y ranges from -worldHeight/2 (bottom) to +worldHeight/2 (top)
+        // Container: 0 (top) to containerHeight (bottom)
+        // Formula: worldY = worldHeight/2 - (pixelY / containerHeight) * worldHeight
+        const targetTopWorldY = worldHeight / 2 - (targetTopPosition / containerHeight) * worldHeight
+        // Position art so when normalizedY=0 (top of image), y equals targetTopWorldY
+        // When normalizedY=1 (bottom of image), y = targetTopWorldY - height3D
+        const y = targetTopWorldY - (normalizedY * height3D) + jitterY * height3D
         const z = (Math.random() - 0.5) * 0.5 // Reduced Z variation to keep particles in plane
         
         targetPositions.push(new THREE.Vector3(x, y, z))
@@ -1246,8 +1258,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
             if (t > 0.01) {
               // OPTIMIZATION: Use simpler random calculation (reuse seed from sizeVariation)
               float rnd = fract(sin(randomSeed + 100.0) * 43758.5453); // Offset seed to get different random value
-              // Stronger displacement (50.0) for more visible jump
-              pos.z += t * 50.0 * (rnd - 0.5);
+              // Increased displacement (200.0) so particles move further away from cursor
+              pos.z += t * 200.0 * (rnd - 0.5);
             }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);

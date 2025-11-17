@@ -375,11 +375,6 @@ function AnimationPage() {
         </nav>
       </aside>
 
-      {/* Bottom Left - Timestamp */}
-      <div className="bottom-left">
-        {new Date().toLocaleTimeString('en-US', { hour12: false })}
-      </div>
-
       {/* Bottom Right - Character Count / Loading / Form Type */}
       <div className="bottom-right">
         {phase === 'input' && (
@@ -633,7 +628,9 @@ function AnimationPage() {
               background: 'transparent', // Transparent so art shows through in art area
               overflowY: 'auto', // Enable scrolling for entire content
               overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+              WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
+              // Prevent scrolling past content - limit to actual content height
+              maxHeight: 'calc(100vh - 80px)' // Match viewport height minus header
             }}
           >
             {/* Art area - transparent spacer so WebGL shows through */}
@@ -661,15 +658,16 @@ function AnimationPage() {
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'center',
-              padding: '0 0 6rem 0', // No top padding - text immediately below art
+              padding: '4rem 0 4rem 0', // Reduced bottom padding to prevent excessive white space
               marginTop: '0', // No negative margin - use transform instead for Safari
-              transform: 'translateY(-2rem)', // Transform works better in Safari
-              WebkitTransform: 'translateY(-2rem)', // Safari prefix
+              transform: 'translateY(-6rem)', // Move up more to start gradient higher
+              WebkitTransform: 'translateY(-6rem)', // Safari prefix
               pointerEvents: 'auto', // Enable text selection and interaction
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 20%, rgb(255,255,255) 40%)', // Softer gradient fade
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 8%, rgba(255,255,255,0.85) 15%, rgb(255,255,255) 22%, rgb(255,255,255) 100%)', // Gradient starts higher, then solid white all the way down
               WebkitBackgroundClip: 'padding-box', // Safari gradient fix
               backgroundClip: 'padding-box',
-              minHeight: 'auto' // Let content determine height
+              minHeight: 'auto', // Let content determine height, don't force full viewport
+              position: 'relative' // Ensure it covers content below
             }}>
               <div className="final-text" style={{
                 width: '100%',
