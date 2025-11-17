@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import './BirdFlockReveal.css'
 
-// Fallback image path (served from public folder)
-const FALLBACK_IMAGE_PATH = '/corey-oconnell-RW7nLtLRHro-unsplash.jpg'
+// No fallback image - will use circular pattern if illustrationUrl is not available
 
 interface ExplodingTextToBirdsProps {
   hypothesis: string
@@ -291,6 +290,49 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
       // createTextGeometry(literaryText, sceneRef.current) // Disabled - using particles only
     }
   }, [literaryText])
+
+  // Watch for illustrationUrl changes - reload illustration when it becomes available
+  useEffect(() => {
+    console.log('🖼️ useEffect triggered for illustrationUrl:', {
+      illustrationUrl,
+      hasScene: !!sceneRef.current,
+      birdCount: birdsRef.current.length,
+      hasParticleSystem: !!imageParticleSystemRef.current
+    })
+    
+    if (illustrationUrl && sceneRef.current && birdsRef.current.length > 0) {
+      console.log('🖼️ Illustration URL became available, reloading illustration...', illustrationUrl)
+      // If particle system already exists, remove it first
+      if (imageParticleSystemRef.current) {
+        console.log('🔄 Removing existing particle system to reload with new image')
+        sceneRef.current.remove(imageParticleSystemRef.current)
+        if (imageParticleGeometryRef.current) {
+          imageParticleGeometryRef.current.dispose()
+        }
+        imageParticleSystemRef.current = null
+        imageParticlePositionsRef.current = []
+        imageParticleColorsRef.current = []
+      }
+      // Reload with the new image - use a small delay to ensure scene is ready
+      setTimeout(() => {
+        if (sceneRef.current && birdsRef.current.length > 0) {
+          console.log('🖼️ Calling loadIllustration with URL:', illustrationUrl)
+          loadIllustration(sceneRef.current, birdsRef.current.length)
+        } else {
+          console.error('❌ Cannot reload illustration - scene or birds not ready', {
+            hasScene: !!sceneRef.current,
+            birdCount: birdsRef.current.length
+          })
+        }
+      }, 100)
+    } else {
+      console.log('⏸️ Not reloading illustration:', {
+        hasUrl: !!illustrationUrl,
+        hasScene: !!sceneRef.current,
+        birdCount: birdsRef.current.length
+      })
+    }
+  }, [illustrationUrl])
 
   function explodeText() {
     console.log('💥 explodeText called, hypothesis:', hypothesis)
@@ -778,9 +820,9 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
     
     // Create particle system for the bird-to-particle transition
     // This happens after birds have flocked for a while
+    // Only create if we don't already have a system - the useEffect will handle reloading when illustrationUrl becomes available
     if (sceneRef.current && !imageParticleSystemRef.current) {
-      console.log(`🖼️ Creating particle system for ${birds.length} birds (using fallback image)`)
-      // Always use fallback image
+      console.log(`🖼️ Creating particle system for ${birds.length} birds`)
       loadIllustration(sceneRef.current, birds.length)
       console.log(`✅ Particle system created: hasSystem=${!!imageParticleSystemRef.current}, positions=${imageParticlePositionsRef.current.length}`)
     } else {
@@ -792,14 +834,36 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
 
   function loadIllustration(scene: THREE.Scene, birdCount: number) {
     // Create exactly as many particles as birds - one particle per bird
-    // Use generated image if available, otherwise fallback to default image
+    // Use generated image if available, otherwise use circular pattern
     const targetPositions: THREE.Vector3[] = []
     const colors: THREE.Color[] = []
     
-    // Use illustrationUrl if provided, otherwise use fallback
-    const imageUrl = illustrationUrl || FALLBACK_IMAGE_PATH
+    // If no illustrationUrl, use circular pattern directly
+    if (!illustrationUrl) {
+      const targetParticleCount = birdCount * 4
+      for (let i = 0; i < targetParticleCount; i++) {
+        const t = i / targetParticleCount
+        const angle = t * Math.PI * 2 * 2.0
+        const distance = 15 + (20 * (0.5 + Math.sin(t * Math.PI * 4) * 0.3))
+        targetPositions.push(new THREE.Vector3(
+          Math.cos(angle) * distance,
+          Math.sin(angle) * distance,
+          (Math.random() - 0.5) * 3
+        ))
+        const hue = (t * 360) % 360
+        const color = new THREE.Color()
+        color.setHSL(hue / 360, 0.8, 0.5 + Math.random() * 0.2)
+        colors.push(color)
+      }
+      imageParticlePositionsRef.current = targetPositions
+      imageParticleColorsRef.current = colors
+      const particleCount = targetPositions.length
+      createParticleSystem(scene, particleCount, targetPositions, colors)
+      return
+    }
     
-    console.log(`🖼️ Loading image for particle system: ${imageUrl ? (illustrationUrl ? 'generated' : 'fallback') : 'none'}`)
+    const imageUrl = illustrationUrl
+    console.log(`🖼️ Loading image for particle system: generated`)
     const img = new Image()
     // Set crossOrigin for all images to allow canvas pixel reading
     // Pollinations.AI should support CORS - if it doesn't, we'll fall back to circular pattern
@@ -1026,12 +1090,12 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         maxY = Math.max(maxY, pos.y)
       })
       
-      console.log(`🔧 Creating particle system with fallback image: scene=${!!scene}, particleCount=${particleCount}, birdCount=${birdCount}`)
+      console.log(`🔧 Creating particle system with generated image: scene=${!!scene}, particleCount=${particleCount}, birdCount=${birdCount}, imageUrl=${imageUrl}`)
       try {
         createParticleSystem(scene, particleCount, targetPositions, colors)
-        console.log(`✅ createParticleSystem completed (fallback image): hasSystem=${!!imageParticleSystemRef.current}`)
+        console.log(`✅ createParticleSystem completed (generated image): hasSystem=${!!imageParticleSystemRef.current}`)
       } catch (error) {
-        console.error('❌ Error creating particle system (fallback image):', error)
+        console.error('❌ Error creating particle system (generated image):', error)
       }
     }
     

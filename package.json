@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@types/three": "^0.181.0",
+    "animejs": "^4.2.2",
     "framer-motion": "^12.23.24",
     "gsap": "^3.13.0",
     "oridomi": "^1.1.2",

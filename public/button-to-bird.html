@@ -213,13 +213,9 @@
     </button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
     <script>
-        // Configure GSAP for Safari compatibility
-        gsap.config({ 
-            force3D: true,
-            nullTargetWarn: false 
-        });
         
         // Three.js Bird Geometry (MATCH loading animation)
         function Bird() {
@@ -316,6 +312,7 @@
             // Scale adjusted for OrthographicCamera - loading uses 1.2 with PerspectiveCamera
             bird.scale.set(3, 3, 3);
             bird.phase = 0;
+            bird.visible = false; // Hidden until particles complete
             scene.add(bird);
             
             // Add lights for MeshPhongMaterial
@@ -439,167 +436,177 @@
 
         initThreeJS();
 
-        // Button animation - fold into BIRD shape
+        // Button animation - fade out and transform into bird
         document.querySelectorAll('.button').forEach(button => {
-            let getVar = variable => getComputedStyle(button).getPropertyValue(variable);
-
             button.addEventListener('click', e => {
                 if(!button.classList.contains('active')) {
-                    button.classList.add('active');
-
-                    // Get button position
-                    const rect = button.getBoundingClientRect();
-                    const buttonCenterX = rect.left + rect.width / 2 - window.innerWidth / 2;
-                    const buttonCenterY = -(rect.top + rect.height / 2 - window.innerHeight / 2);
-
-                    // Helper function to force Safari repaints
-                    const forceSafariRepaint = () => {
-                        void button.offsetHeight;
-                        const currentTransform = button.style.transform;
-                        button.style.transform = 'translateZ(0.001px)';
-                        void button.offsetHeight;
-                        button.style.transform = currentTransform;
-                    };
-
-                    // Bird fold - matching boid structure with triangular wings
-                    gsap.to(button, {
-                        keyframes: [{
-                            // Collapse to center
-                            '--left-wing-first-x': 50,
-                            '--left-wing-first-y': 50,
-                            '--left-wing-second-x': 50,
-                            '--left-wing-second-y': 50,
-                            '--left-wing-third-x': 50,
-                            '--left-wing-third-y': 50,
-                            '--right-wing-first-x': 50,
-                            '--right-wing-first-y': 50,
-                            '--right-wing-second-x': 50,
-                            '--right-wing-second-y': 50,
-                            '--right-wing-third-x': 50,
-                            '--right-wing-third-y': 50,
-                            '--border-radius': 0,
-                            duration: 0.3,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }, {
-                            // Bird shape - like boid geometry (diagonal view, nose upper-right)
-                            '--rotate': 50,
-                            
-                            // Left wing - large triangle
-                            '--left-wing-first-x': 60,   // connects to body
-                            '--left-wing-first-y': 45,
-                            '--left-wing-second-x': 15,  // wing tip (far left)
-                            '--left-wing-second-y': 65,
-                            '--left-wing-third-x': 50,   // back of body
-                            '--left-wing-third-y': 55,
-                            
-                            // Right wing - large triangle
-                            '--right-wing-first-x': 60,  // connects to body
-                            '--right-wing-first-y': 45,
-                            '--right-wing-second-x': 80, // wing tip (right)
-                            '--right-wing-second-y': 55,
-                            '--right-wing-third-x': 50,  // back of body
-                            '--right-wing-third-y': 55,
-                            
-                            // Body - small triangle pointing upper-right (nose)
-                            '--left-body-first-x': 60,
-                            '--left-body-first-y': 43,
-                            '--left-body-second-x': 70,  // nose tip
-                            '--left-body-second-y': 40,
-                            '--left-body-third-x': 60,
-                            '--left-body-third-y': 47,
-                            
-                            '--right-body-first-x': 60,
-                            '--right-body-first-y': 43,
-                            '--right-body-second-x': 70,
-                            '--right-body-second-y': 40,
-                            '--right-body-third-x': 60,
-                            '--right-body-third-y': 47,
-                            
-                            '--right-body-first-x': 65,
-                            '--right-body-first-y': 45,
-                            '--right-body-second-x': 65,
-                            '--right-body-second-y': 45,
-                            '--right-body-third-x': 65,
-                            '--right-body-third-y': 45,
-                            
-                            duration: 0.3,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }]
-                    });
-
-                    // Wing flapping animation
-                    const flapTimeline = gsap.timeline({ delay: 1.0 });
+                    // CRITICAL: Lock button position IMMEDIATELY - BEFORE any other changes
+                    // Capture position from viewport to prevent any layout shifts
+                    const buttonRect = button.getBoundingClientRect();
                     
-                    // Flap 3 times - wings sweep up and down
-                    for (let i = 0; i < 3; i++) {
-                        flapTimeline.to(button, {
-                            // Wings up
-                            '--left-wing-second-y': 55,
-                            '--right-wing-second-y': 45,
-                            duration: 0.2,
-                            ease: "power2.out",
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }).to(button, {
-                            // Wings down  
-                            '--left-wing-second-y': 70,
-                            '--right-wing-second-y': 60,
-                            duration: 0.2,
-                            ease: "power2.in",
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        });
+                    // Lock position SYNCHRONOUSLY with !important - do this FIRST
+                    button.style.setProperty('position', 'fixed', 'important');
+                    button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                    button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                    button.style.setProperty('width', `${buttonRect.width}px`, 'important');
+                    button.style.setProperty('height', `${buttonRect.height}px`, 'important');
+                    button.style.setProperty('margin', '0', 'important');
+                    button.style.setProperty('padding', '8px 24px', 'important');
+                    button.style.setProperty('transform', 'none', 'important');
+                    button.style.setProperty('z-index', '999999', 'important');
+                    
+                    // Force reflow to ensure position is locked
+                    void button.offsetWidth;
+                    void button.offsetHeight;
+                    
+                    // Verify position is locked before proceeding
+                    const verifyRect = button.getBoundingClientRect();
+                    if (verifyRect.left !== buttonRect.left || verifyRect.top !== buttonRect.top) {
+                        console.warn('⚠️ Button moved during lock! Re-locking...');
+                        button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                        button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                        void button.offsetWidth;
                     }
                     
-                    // After flapping, transition to Three.js
-                    flapTimeline.to(button, {
-                        '--plane-opacity': 0,
-                        duration: 0.2,
-                        onUpdate: forceSafariRepaint,
-                        force3D: true,
-                        onComplete() {
-                            // Start Three.js bird with physics
-                            boid.position.set(buttonCenterX, buttonCenterY, 0);
-                            boid.velocity.set(0.5, -0.5, 0);
-                            waypoints = createLoopWaypoints(buttonCenterX, buttonCenterY);
-                            currentWaypoint = 0;
-                            threeJsActive = true;
-                            animateThreeJS();
-                        }
-                    });
+                    // NOW add active class (after position is locked)
+                    button.classList.add('active');
 
-                    // Color changes
-                    gsap.to(button, {
-                        keyframes: [{
-                            '--text-opacity': 0,
-                            '--left-wing-background': getVar('--primary-darkest'),
-                            '--right-wing-background': getVar('--primary-darkest'),
-                            duration: 0.1,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }, {
-                            '--left-wing-background': getVar('--primary'),
-                            '--right-wing-background': getVar('--primary'),
-                            duration: 0.1,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }, {
-                            '--left-body-background': getVar('--primary-dark'),
-                            '--right-body-background': getVar('--primary-darkest'),
-                            duration: 0.4,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }, {
-                            '--success-opacity': 1,
-                            '--success-scale': 1,
-                            duration: 0.25,
-                            delay: 0.25,
-                            onUpdate: forceSafariRepaint,
-                            force3D: true
-                        }]
-                    });
+                    // Get button position for Three.js bird (use the locked position)
+                    const buttonCenterX = buttonRect.left + buttonRect.width / 2 - window.innerWidth / 2;
+                    const buttonCenterY = -(buttonRect.top + buttonRect.height / 2 - window.innerHeight / 2);
+
+                    // Position bird at button location immediately
+                    boid.position.set(buttonCenterX, buttonCenterY, 0);
+                    bird.position.copy(boid.position);
+                    
+                    // Start bird at larger initial size so it appears to emerge from button
+                    bird.visible = true;
+                    bird.scale.set(0.5, 0.5, 0.5); // Start at 50% instead of 10% - more visible transformation
+                    
+                    // CRITICAL: Ensure button is fully visible before transformation
+                    button.style.opacity = '1';
+                    button.style.visibility = 'visible';
+                    void button.offsetWidth; // Force reflow
+                    
+                    // CRITICAL: Button transforms directly into bird - no explosion
+                    // Button fades out as bird scales up, creating seamless transformation
+                    // Start IMMEDIATELY when bird becomes visible
+                    const transformationDuration = 1000; // 1000ms for slower, more visible transformation
+                    const pauseBeforeFlight = 600; // 600ms pause after bird appears before flight starts
+                    
+                    // Use GSAP timeline for perfect synchronization (if GSAP is available)
+                    if (typeof gsap !== 'undefined') {
+                        const tl = gsap.timeline();
+                        
+                        // Button fades out smoothly - no scaling, just fade
+                        tl.to(button, {
+                            opacity: 0,
+                            duration: transformationDuration / 1000, // Convert to seconds
+                            ease: 'power2.out', // Smooth easing for transformation
+                            onUpdate: () => {
+                                // Re-lock position during transformation
+                                button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                                button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                                button.style.setProperty('transform', 'none', 'important'); // No scaling
+                            },
+                            onComplete: () => {
+                                button.style.opacity = '0';
+                                button.style.pointerEvents = 'none';
+                                button.style.setProperty('transform', 'none', 'important');
+                                button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                                button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                                button.style.setProperty('visibility', 'hidden', 'important');
+                                button.style.setProperty('display', 'none', 'important');
+                                button.classList.remove('active');
+                            }
+                        }, 0);
+                        
+                        // Bird scales up at EXACT same time - synchronized transformation
+                        const scaleObj = { value: 0.5 }; // Start at 50% (matches initial bird scale)
+                        tl.to(scaleObj, {
+                            value: 1,
+                            duration: transformationDuration / 1000, // Same duration as button fade
+                            ease: 'power2.out',
+                            onUpdate: () => {
+                                const scale = scaleObj.value * 3;
+                                bird.scale.set(scale, scale, scale);
+                            },
+                            onComplete: () => {
+                                // Brief pause after bird appears before starting flight
+                                setTimeout(() => {
+                                    // Start flight animation
+                                    boid.velocity.set(0.5, -0.5, 0);
+                                    waypoints = createLoopWaypoints(buttonCenterX, buttonCenterY);
+                                    currentWaypoint = 0;
+                                    threeJsActive = true;
+                                    animateThreeJS();
+                                }, pauseBeforeFlight); // Brief pause after transformation before flight starts
+                            }
+                        }, 0);
+                        
+                        // Start timeline immediately
+                        tl.play();
+                    } else {
+                        // Fallback: Use requestAnimationFrame if GSAP not available
+                        let fadeStartTime = null;
+                        const fadeStep = (timestamp) => {
+                            if (!fadeStartTime) fadeStartTime = timestamp;
+                            const elapsed = timestamp - fadeStartTime;
+                            const progress = Math.min(elapsed / transformationDuration, 1);
+                            const easeOut = 1 - Math.pow(1 - progress, 2); // easeOutQuad for smooth fade
+                            
+                            // Button fades out smoothly - no scaling
+                            const opacity = 1 - easeOut; // Fade from 1.0 to 0.0
+                            
+                            // Apply fade effect (no scale)
+                            button.style.opacity = opacity.toString();
+                            button.style.setProperty('transform', 'none', 'important'); // No scaling
+                            
+                            // Re-lock position during transformation to prevent any movement
+                            button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                            button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                            
+                            if (progress < 1) {
+                                requestAnimationFrame(fadeStep);
+                            } else {
+                                // Hide button completely after transformation
+                                button.style.opacity = '0';
+                                button.style.pointerEvents = 'none';
+                                button.style.setProperty('transform', 'none', 'important');
+                                button.style.setProperty('visibility', 'hidden', 'important');
+                                button.style.setProperty('display', 'none', 'important');
+                                // Final position lock
+                                button.style.setProperty('left', `${buttonRect.left}px`, 'important');
+                                button.style.setProperty('top', `${buttonRect.top}px`, 'important');
+                                button.classList.remove('active');
+                            }
+                        };
+                        requestAnimationFrame(fadeStep);
+                        
+                        // Animate bird scaling up at EXACT same time as button transformation
+                        const scaleObj = { value: 0.5 }; // Start at 50% (matches initial bird scale)
+                        anime({
+                            targets: scaleObj,
+                            value: 1,
+                            duration: transformationDuration, // Same duration as button fade
+                            easing: 'easeOutCubic',
+                            update: () => {
+                                const scale = scaleObj.value * 3;
+                                bird.scale.set(scale, scale, scale);
+                            },
+                            complete: () => {
+                                // Brief pause after bird appears before starting flight
+                                setTimeout(() => {
+                                    // Start flight animation
+                                    boid.velocity.set(0.5, -0.5, 0);
+                                    waypoints = createLoopWaypoints(buttonCenterX, buttonCenterY);
+                                    currentWaypoint = 0;
+                                    threeJsActive = true;
+                                    animateThreeJS();
+                                }, pauseBeforeFlight); // Brief pause after transformation before flight starts
+                            }
+                        });
+                    }
                 }
             });
         });

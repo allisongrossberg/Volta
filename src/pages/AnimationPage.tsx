@@ -41,6 +41,7 @@ function AnimationPage() {
   const aboutTriggerRef = useRef<HTMLSpanElement>(null)
   const submitButtonRef = useRef<HTMLButtonElement>(null)
   const htmlAnimationHandlerRef = useRef<((e: MouseEvent) => void) | null>(null)
+  const lockedButtonPositionRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
   
   // Store API results in refs to avoid state updates during animation
   const apiResultsRef = useRef<{
@@ -64,21 +65,82 @@ function AnimationPage() {
         e.preventDefault()
         e.stopPropagation()
         
-        // Set submitting state
-        setIsSubmitting(true)
+        // CRITICAL: Lock button position IMMEDIATELY - BEFORE any other changes
+        // Capture position from viewport to prevent any layout shifts
+        const buttonRect = button.getBoundingClientRect()
         
-        // Add active class (HTML does this)
+        // Store the locked position in a ref so useEffect can use it
+        lockedButtonPositionRef.current = {
+          left: buttonRect.left,
+          top: buttonRect.top,
+          width: buttonRect.width,
+          height: buttonRect.height
+        }
+        
+        // Lock position SYNCHRONOUSLY with !important - do this FIRST, before ANY other changes
+        button.style.setProperty('position', 'fixed', 'important')
+        button.style.setProperty('left', `${buttonRect.left}px`, 'important')
+        button.style.setProperty('top', `${buttonRect.top}px`, 'important')
+        button.style.setProperty('width', `${buttonRect.width}px`, 'important')
+        button.style.setProperty('height', `${buttonRect.height}px`, 'important')
+        button.style.setProperty('margin', '0', 'important')
+        button.style.setProperty('padding', '8px 24px', 'important')
+        button.style.setProperty('transform', 'none', 'important')
+        button.style.setProperty('isolation', 'isolate', 'important')
+        button.style.setProperty('will-change', 'opacity', 'important')
+        button.style.setProperty('--rotate', '0', 'important')
+        button.style.setProperty('--plane-x', '0', 'important')
+        button.style.setProperty('--plane-y', '0', 'important')
+        button.style.setProperty('z-index', '999999', 'important')
+        
+        // Force multiple reflows to ensure position is locked
+        void button.offsetWidth
+        void button.offsetHeight
+        void button.getBoundingClientRect()
+        
+        // Verify position is locked before proceeding
+        const verifyRect = button.getBoundingClientRect()
+        if (verifyRect.left !== buttonRect.left || verifyRect.top !== buttonRect.top) {
+          console.warn('⚠️ Button moved during lock! Re-locking...', {
+            expected: { left: buttonRect.left, top: buttonRect.top },
+            actual: { left: verifyRect.left, top: verifyRect.top }
+          })
+          button.style.setProperty('left', `${buttonRect.left}px`, 'important')
+          button.style.setProperty('top', `${buttonRect.top}px`, 'important')
+          void button.offsetWidth
+        }
+        
+        // NOW add active class (after position is locked)
         button.classList.add('active')
         
-        // Set button to fixed position (like in handleSubmit)
-        const buttonRect = button.getBoundingClientRect()
-        button.style.left = `${buttonRect.left}px`
-        button.style.top = `${buttonRect.top}px`
-        button.style.width = `${buttonRect.width}px`
-        button.style.height = `${buttonRect.height}px`
-        button.style.isolation = 'isolate'
-        button.style.willChange = 'transform, opacity'
-        void button.offsetWidth // Force reflow
+        // Set submitting state (after position is locked)
+        setIsSubmitting(true)
+        
+        // Set up continuous position monitoring with MutationObserver
+        const observer = new MutationObserver(() => {
+          if (button && lockedButtonPositionRef.current) {
+            const currentRect = button.getBoundingClientRect()
+            const lockedPos = lockedButtonPositionRef.current
+            if (currentRect.left !== lockedPos.left || currentRect.top !== lockedPos.top) {
+              console.warn('⚠️ Button position changed! Re-locking...', {
+                expected: { left: lockedPos.left, top: lockedPos.top },
+                actual: { left: currentRect.left, top: currentRect.top }
+              })
+              button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+              button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+            }
+          }
+        })
+        
+        observer.observe(button, {
+          attributes: true,
+          attributeFilter: ['style', 'class'],
+          childList: false,
+          subtree: false
+        })
+        
+        // Store observer for cleanup
+        ;(button as any)._positionObserver = observer
         
         // Hide all form elements EXCEPT the button (which is fixed and isolated)
         // Don't hide the container itself - it might affect the button animation
@@ -130,40 +192,103 @@ function AnimationPage() {
         // IMPORTANT: Don't hide the form or container - the button needs to stay visible
         // The button is already fixed-positioned and isolated, so it won't be affected
         
-        // Use requestAnimationFrame to ensure animation gets priority, then update state
-        // This ensures GSAP animation can start before React re-renders
+        // CRITICAL: Re-verify button position after hiding form elements
+        // This ensures the button hasn't moved due to any layout shifts
         requestAnimationFrame(() => {
-          // Update phase - ButtonToBirdThreeJS will handle the actual animation
-          setPhase('animating')
-          setShowButtonAnimation(true)
-          
-          // Start API calls immediately after state update - they run in parallel
-          // Store results in refs to avoid further re-renders during animation
-          console.log('🚀 Starting API calls in parallel with animation')
-          ;(async () => {
-            try {
-              console.log('📡 Starting API calls for text and image generation')
-              // Generate text first
-              const textResult = await generateText(hypothesis, selectedLiteraryForm)
-              // Store in ref instead of state to avoid re-render during animation
-              apiResultsRef.current.text = textResult.text
-              apiResultsRef.current.form = textResult.form
-              
-              // Then generate image from the generated text
-              // Pass literary form to match original format from commit 0b80fee
-              const imageUrl = await generateImage(textResult.text, window.innerWidth, window.innerHeight, selectedLiteraryForm)
-              if (imageUrl) {
-                apiResultsRef.current.imageUrl = imageUrl
-              }
-              
-              console.log('✅ API calls completed (stored in refs, will update state after animation)')
-            } catch (error) {
-              console.error('❌ Error generating content:', error)
-              // Fall back to mock data if API fails
-              const formConfig = LITERARY_FORMS.find(f => f.value === selectedLiteraryForm)
-              apiResultsRef.current.form = formConfig?.label.toUpperCase() || 'LITERARY WORK'
+          if (button && lockedButtonPositionRef.current) {
+            const currentRect = button.getBoundingClientRect()
+            const lockedPos = lockedButtonPositionRef.current
+            if (currentRect.left !== lockedPos.left || currentRect.top !== lockedPos.top) {
+              console.warn('⚠️ Button moved after hiding form elements! Re-locking...', {
+                expected: { left: lockedPos.left, top: lockedPos.top },
+                actual: { left: currentRect.left, top: currentRect.top }
+              })
+              button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+              button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+              void button.offsetWidth
             }
-          })() // Fire and forget - runs in parallel, no state updates during animation
+          }
+        })
+        
+        // Use multiple requestAnimationFrames to ensure position stays locked through re-renders
+        requestAnimationFrame(() => {
+          // Re-lock position before phase change
+          if (button && lockedButtonPositionRef.current) {
+            const lockedPos = lockedButtonPositionRef.current
+            
+            // Re-lock position
+            button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+            button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+            void button.offsetWidth
+            
+            // Verify it's still correct
+            const verifyRect = button.getBoundingClientRect()
+            if (verifyRect.left !== lockedPos.left || verifyRect.top !== lockedPos.top) {
+              console.warn('⚠️ Button position incorrect before phase change! Re-locking...', {
+                expected: { left: lockedPos.left, top: lockedPos.top },
+                actual: { left: verifyRect.left, top: verifyRect.top }
+              })
+              button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+              button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+              void button.offsetWidth
+            }
+          }
+          
+          requestAnimationFrame(() => {
+            // Re-lock again, then change phase
+            if (button && lockedButtonPositionRef.current) {
+              const lockedPos = lockedButtonPositionRef.current
+              
+              // Re-lock position
+              button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+              button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+              void button.offsetWidth
+              
+              // Final verification before phase change
+              const verifyRect = button.getBoundingClientRect()
+              if (verifyRect.left !== lockedPos.left || verifyRect.top !== lockedPos.top) {
+                console.warn('⚠️ Button position incorrect on final check! Re-locking...', {
+                  expected: { left: lockedPos.left, top: lockedPos.top },
+                  actual: { left: verifyRect.left, top: verifyRect.top }
+                })
+                button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+                button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+                void button.offsetWidth
+              }
+            }
+            
+            // Update phase - ButtonToBirdThreeJS will handle the actual animation
+            setPhase('animating')
+            setShowButtonAnimation(true)
+            
+            // Start API calls immediately after state update - they run in parallel
+            // Store results in refs to avoid further re-renders during animation
+            console.log('🚀 Starting API calls in parallel with animation')
+            ;(async () => {
+              try {
+                console.log('📡 Starting API calls for text and image generation')
+                // Generate text first
+                const textResult = await generateText(hypothesis, selectedLiteraryForm)
+                // Store in ref instead of state to avoid re-render during animation
+                apiResultsRef.current.text = textResult.text
+                apiResultsRef.current.form = textResult.form
+                
+                // Then generate image from the generated text
+                // Pass literary form to match original format from commit 0b80fee
+                const imageUrl = await generateImage(textResult.text, window.innerWidth, window.innerHeight, selectedLiteraryForm)
+                if (imageUrl) {
+                  apiResultsRef.current.imageUrl = imageUrl
+                }
+                
+                console.log('✅ API calls completed (stored in refs, will update state after animation)')
+              } catch (error) {
+                console.error('❌ Error generating content:', error)
+                // Fall back to mock data if API fails
+                const formConfig = LITERARY_FORMS.find(f => f.value === selectedLiteraryForm)
+                apiResultsRef.current.form = formConfig?.label.toUpperCase() || 'LITERARY WORK'
+              }
+            })() // Fire and forget - runs in parallel, no state updates during animation
+          })
         })
         
         console.log('✅ Button setup complete - ButtonToBirdThreeJS will handle animation')
@@ -180,6 +305,46 @@ function AnimationPage() {
       }
     }
   }, [isSubmitting, hypothesis, selectedLiteraryForm])
+
+  // CRITICAL: Re-lock button position immediately when phase changes to 'animating'
+  // This prevents the button from moving during React re-renders
+  useEffect(() => {
+    if (phase === 'animating' && submitButtonRef.current?.classList.contains('active') && lockedButtonPositionRef.current) {
+      const button = submitButtonRef.current
+      const lockedPos = lockedButtonPositionRef.current
+      
+      // Use the ORIGINAL locked position, not the current position
+      // This ensures the button stays exactly where it was when clicked
+      button.style.setProperty('position', 'fixed', 'important')
+      button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+      button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+      button.style.setProperty('width', `${lockedPos.width}px`, 'important')
+      button.style.setProperty('height', `${lockedPos.height}px`, 'important')
+      button.style.setProperty('margin', '0', 'important')
+      button.style.setProperty('padding', '8px 24px', 'important')
+      button.style.setProperty('transform', 'none', 'important')
+      button.style.setProperty('will-change', 'opacity', 'important')
+      
+      // Force reflow to apply styles immediately
+      void button.offsetWidth
+      
+      // Double-check after a frame to catch any delayed layout shifts
+      requestAnimationFrame(() => {
+        if (button && button.classList.contains('active') && lockedButtonPositionRef.current) {
+          const currentRect = button.getBoundingClientRect()
+          if (currentRect.left !== lockedPos.left || currentRect.top !== lockedPos.top) {
+            console.warn('⚠️ Button moved during phase change! Re-locking with !important', {
+              expected: { left: lockedPos.left, top: lockedPos.top },
+              actual: { left: currentRect.left, top: currentRect.top }
+            })
+            button.style.setProperty('left', `${lockedPos.left}px`, 'important')
+            button.style.setProperty('top', `${lockedPos.top}px`, 'important')
+            void button.offsetWidth
+          }
+        }
+      })
+    }
+  }, [phase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -220,36 +385,86 @@ function AnimationPage() {
     // CRITICAL: Keep button FULLY VISIBLE for morphing animation
     // Add 'active' class which will make it fixed position and always visible
     // MUST do this BEFORE fading form group to prevent opacity inheritance issues
+    let lockedButtonRect: DOMRect | null = null
     if (submitButton) {
       const buttonRect = submitButton.getBoundingClientRect()
+      lockedButtonRect = buttonRect // Store for later use
       
-      // Add active class FIRST (CSS will make it fixed and visible with !important)
-      submitButton.classList.add('active')
+      // CRITICAL: Lock position BEFORE adding active class to prevent any movement
+      // Use setProperty with important flag to override everything
+      submitButton.style.setProperty('position', 'fixed', 'important')
+      submitButton.style.setProperty('left', `${buttonRect.left}px`, 'important')
+      submitButton.style.setProperty('top', `${buttonRect.top}px`, 'important')
+      submitButton.style.setProperty('width', `${buttonRect.width}px`, 'important')
+      submitButton.style.setProperty('height', `${buttonRect.height}px`, 'important')
+      submitButton.style.setProperty('margin', '0', 'important')
+      submitButton.style.setProperty('padding', '8px 24px', 'important')
+      submitButton.style.setProperty('transform', 'none', 'important')
+      submitButton.style.setProperty('--rotate', '0', 'important')
+      submitButton.style.setProperty('--plane-x', '0', 'important')
+      submitButton.style.setProperty('--plane-y', '0', 'important')
+      submitButton.style.setProperty('isolation', 'isolate', 'important')
+      submitButton.style.setProperty('will-change', 'opacity', 'important')
       
-      // Set fixed position to keep it in the same visual location
-      // Use getBoundingClientRect values directly (already relative to viewport)
-      submitButton.style.left = `${buttonRect.left}px`
-      submitButton.style.top = `${buttonRect.top}px`
-      submitButton.style.width = `${buttonRect.width}px`
-      submitButton.style.height = `${buttonRect.height}px`
-      
-      // CRITICAL: Force button to be on its own stacking context
-      // This prevents parent opacity/transform from affecting it
-      submitButton.style.isolation = 'isolate'
-      submitButton.style.willChange = 'transform, opacity'
-      
-      // Force a reflow to ensure fixed positioning is applied
+      // Force reflow to lock position
       void submitButton.offsetWidth
       
+      // NOW add active class (CSS won't override our inline styles with !important)
+      submitButton.classList.add('active')
+      
+      // Force another reflow after adding class
+      void submitButton.offsetWidth
+      
+      // Verify position is still locked
+      const finalRect = submitButton.getBoundingClientRect()
+      const computedStyle = window.getComputedStyle(submitButton)
       console.log('🔍 Button after submit - made active and fixed:', {
-        left: buttonRect.left,
-        top: buttonRect.top,
-        width: buttonRect.width,
-        height: buttonRect.height,
+        initialLeft: buttonRect.left,
+        initialTop: buttonRect.top,
+        finalLeft: finalRect.left,
+        finalTop: finalRect.top,
+        moved: finalRect.left !== buttonRect.left || finalRect.top !== buttonRect.top,
         hasActiveClass: submitButton.classList.contains('active'),
-        computedPosition: window.getComputedStyle(submitButton).position,
-        computedZIndex: window.getComputedStyle(submitButton).zIndex
+        computedPosition: computedStyle.position,
+        computedLeft: computedStyle.left,
+        computedTop: computedStyle.top,
+        computedTransform: computedStyle.transform,
+        computedZIndex: computedStyle.zIndex,
+        computedMargin: computedStyle.margin
       })
+      
+      // If button moved, force it back with !important
+      if (finalRect.left !== buttonRect.left || finalRect.top !== buttonRect.top) {
+        console.warn('⚠️ Button moved after locking! Forcing back to original position')
+        submitButton.style.setProperty('left', `${buttonRect.left}px`, 'important')
+        submitButton.style.setProperty('top', `${buttonRect.top}px`, 'important')
+        void submitButton.offsetWidth
+      }
+      
+      // Set up a MutationObserver to catch any style changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const currentRect = submitButton.getBoundingClientRect()
+            if (lockedButtonRect && (currentRect.left !== lockedButtonRect.left || currentRect.top !== lockedButtonRect.top)) {
+              console.warn('⚠️ Button style was modified! Re-locking position', {
+                expected: { left: lockedButtonRect.left, top: lockedButtonRect.top },
+                actual: { left: currentRect.left, top: currentRect.top }
+              })
+              submitButton.style.setProperty('left', `${lockedButtonRect.left}px`, 'important')
+              submitButton.style.setProperty('top', `${lockedButtonRect.top}px`, 'important')
+            }
+          }
+        })
+      })
+      
+      observer.observe(submitButton, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      })
+      
+      // Store observer to clean up later
+      ;(submitButton as any)._positionObserver = observer
     }
     
     // NOW fade out form group (textarea area) - button is already fixed so won't be affected
@@ -259,8 +474,55 @@ function AnimationPage() {
       formGroup.style.opacity = '0'
     }
     
-    // Move to animating phase (white screen)
+    // CRITICAL: Prevent any scroll or layout shifts before phase change
+    const scrollY = window.scrollY
+    const scrollX = window.scrollX
+    
+    // Move to animating phase (white screen) - button is already locked so won't move
     setPhase('animating')
+    
+    // CRITICAL: Re-lock button position after phase change to prevent any layout shifts
+    // Use multiple requestAnimationFrame calls to catch any delayed re-renders
+    if (submitButton && lockedButtonRect) {
+      // First frame - immediate check
+      requestAnimationFrame(() => {
+        if (submitButton && lockedButtonRect) {
+          // Restore scroll position if it changed
+          if (window.scrollY !== scrollY) {
+            window.scrollTo(scrollX, scrollY)
+          }
+          
+          const currentRect = submitButton.getBoundingClientRect()
+          if (currentRect.left !== lockedButtonRect.left || currentRect.top !== lockedButtonRect.top) {
+            console.warn('⚠️ Button moved after phase change! Re-locking position', {
+              expected: { left: lockedButtonRect.left, top: lockedButtonRect.top },
+              actual: { left: currentRect.left, top: currentRect.top },
+              scrollChanged: window.scrollY !== scrollY
+            })
+            submitButton.style.position = 'fixed'
+            submitButton.style.left = `${lockedButtonRect.left}px`
+            submitButton.style.top = `${lockedButtonRect.top}px`
+            submitButton.style.setProperty('transform', 'none', 'important')
+            void submitButton.offsetWidth
+          }
+        }
+      })
+      
+      // Second frame - catch any delayed layout shifts
+      requestAnimationFrame(() => {
+        if (submitButton && lockedButtonRect) {
+          const currentRect = submitButton.getBoundingClientRect()
+          if (currentRect.left !== lockedButtonRect.left || currentRect.top !== lockedButtonRect.top) {
+            console.warn('⚠️ Button moved on second frame! Re-locking again')
+            submitButton.style.position = 'fixed'
+            submitButton.style.left = `${lockedButtonRect.left}px`
+            submitButton.style.top = `${lockedButtonRect.top}px`
+            submitButton.style.setProperty('transform', 'none', 'important')
+            void submitButton.offsetWidth
+          }
+        }
+      })
+    }
     
     // Trigger button to bird animation IMMEDIATELY
     console.log('🚀 Starting button to bird animation on same screen', {
@@ -432,7 +694,10 @@ function AnimationPage() {
             style={{ 
               pointerEvents: phase === 'input' ? 'auto' : 'none',
               // Don't apply opacity to container - it affects fixed button
-              isolation: 'isolate' // Create new stacking context
+              isolation: 'isolate', // Create new stacking context
+              // CRITICAL: Prevent any transforms that might affect fixed button
+              transform: 'none !important',
+              willChange: 'opacity' // Only opacity, not transform
             }}
           >
             <form onSubmit={handleSubmit} className="input-form">

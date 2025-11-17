@@ -444,17 +444,22 @@
 }
 
 /* CRITICAL: Keep button visible during animation even if parent fades */
+/* NOTE: left, top, width, height are set inline with !important in JavaScript */
+/* This CSS rule ensures position: fixed is applied, but inline styles override left/top */
 .submit-button.active {
   opacity: 1 !important;
   visibility: visible !important;
   display: inline-block !important;
   position: fixed !important; /* Take it out of the flow so parent opacity doesn't affect it */
+  /* left, top, width, height are set inline with !important - don't set them here */
+  margin: 0 !important; /* Remove any margin that might affect position */
+  padding: 8px 24px !important; /* Preserve padding */
   z-index: 999999 !important; /* SUPER HIGH z-index to be above everything */
   pointer-events: auto !important;
   overflow: visible !important; /* Ensure clip-path shapes are visible */
-  transform: rotate(calc(var(--rotate) * 1deg)) translateZ(0) !important; /* Maintain transform context */
+  transform: none !important; /* NO transform - prevent any movement */
   isolation: isolate !important; /* Create new stacking context - prevents parent opacity/transform from affecting */
-  will-change: transform, opacity, clip-path !important; /* Optimize for animation including clip-path */
+  will-change: opacity !important; /* Only opacity, not transform - prevents movement */
   /* Force hardware acceleration */
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;

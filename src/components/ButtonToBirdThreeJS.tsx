@@ -2,12 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { gsap } from 'gsap'
 
-// Ensure GSAP properly handles CSS variables in Safari
-gsap.config({ 
-  force3D: true,
-  nullTargetWarn: false 
-})
-
 interface ButtonToBirdThreeJSProps {
   buttonElement: HTMLElement | null
   onAnimationComplete: () => void
@@ -51,13 +45,30 @@ export default function ButtonToBirdThreeJS({
     
     console.log('📐 ButtonToBirdThreeJS: Getting button position', buttonElement)
     const buttonRect = buttonElement.getBoundingClientRect()
+    
+    // CRITICAL: Lock button position with !important to prevent any movement
+    // Override any CSS transforms that might move the button
+    buttonElement.style.setProperty('position', 'fixed', 'important')
+    buttonElement.style.setProperty('left', `${buttonRect.left}px`, 'important')
+    buttonElement.style.setProperty('top', `${buttonRect.top}px`, 'important')
+    buttonElement.style.setProperty('width', `${buttonRect.width}px`, 'important')
+    buttonElement.style.setProperty('height', `${buttonRect.height}px`, 'important')
+    buttonElement.style.setProperty('margin', '0', 'important')
+    buttonElement.style.setProperty('padding', '8px 24px', 'important')
+    buttonElement.style.setProperty('transform', 'none', 'important')
+    buttonElement.style.setProperty('will-change', 'opacity', 'important')
+    buttonElement.style.setProperty('--rotate', '0', 'important')
+    buttonElement.style.setProperty('--plane-x', '0', 'important')
+    buttonElement.style.setProperty('--plane-y', '0', 'important')
+    void buttonElement.offsetWidth // Force reflow to lock position immediately
+    
     setButtonPosition({
       left: buttonRect.left,
       top: buttonRect.top,
       width: buttonRect.width,
       height: buttonRect.height
     })
-    console.log('✅ Button position set:', buttonRect)
+    console.log('✅ Button position set and locked:', buttonRect)
   }, [buttonElement, buttonPosition])
 
   // Then initialize Three.js once container is rendered
@@ -90,14 +101,14 @@ export default function ButtonToBirdThreeJS({
     
     if (!containerRef.current) {
       console.warn('⚠️ ButtonToBirdThreeJS: Container ref not ready, will retry')
-      // Use GSAP's delayedCall for consistent timing across browsers
-      const retryDelayed = gsap.delayedCall(0.05, () => {
+      // Retry after a short delay
+      setTimeout(() => {
         if (containerRef.current && buttonElement && buttonPosition) {
           console.log('✅ ButtonToBirdThreeJS: Container ready on retry')
           // Force re-render by updating state or trigger effect again
         }
-      })
-      return () => retryDelayed.kill()
+      }, 50)
+      return
     }
 
     console.log('🎬 ButtonToBirdThreeJS: Starting animation', {
@@ -193,6 +204,7 @@ export default function ButtonToBirdThreeJS({
     // For OrthographicCamera, coordinates are already in world space
     // No conversion needed - button position will be used directly
     
+    
     // Create bird mesh (MATCH loading animation from ExplodingTextToBirds)
     const birdMaterial = new THREE.MeshPhongMaterial({ 
       color: 0xDDC57A, // Golden tan to match button
@@ -205,8 +217,10 @@ export default function ButtonToBirdThreeJS({
     // Scale adjusted for OrthographicCamera - loading uses 1.2 with PerspectiveCamera
     bird.scale.set(3, 3, 3)
     ;(bird as any).phase = 0
+    bird.visible = false // Hidden until animation starts
     scene.add(bird)
     birdMeshRef.current = bird
+    console.log('✅ Bird created and added to scene (initially hidden)')
     
     // Create Boid class (EXACT from HTML reference)
     class Boid {
@@ -218,8 +232,8 @@ export default function ButtonToBirdThreeJS({
       private _depth = 1600
       private _goal: THREE.Vector3 | null = null
       private _neighborhoodRadius = 800
-      private _maxSpeed = 3 // Increased speed for faster animation
-      private _maxSteerForce = 0.1
+      private _maxSpeed = 3 // Slower speed for more graceful flight
+      private _maxSteerForce = 0.15 // Faster steering for quicker turns
       private _avoidWalls = false
       private vector = new THREE.Vector3()
       
@@ -422,7 +436,7 @@ export default function ButtonToBirdThreeJS({
     // Create waypoints function - bird flies completely off screen
     const createLoopWaypoints = (startX: number, startY: number) => {
       const points: THREE.Vector3[] = []
-      const numPoints = 15 // Reduced points for faster exit
+      const numPoints = 10 // Fewer points for much faster exit
       const loopRadius = 100
       
       // Get viewport bounds for OrthographicCamera
@@ -449,11 +463,11 @@ export default function ButtonToBirdThreeJS({
         let x: number, y: number
         
         if (t < 0.3) {
-          // Fly UPWARD - but clamp to maxY to avoid header
+          // Fly UPWARD from button position - explode upward
           const t1 = t / 0.3
-          x = startX + t1 * 80
-          // Instead of flying fixed 200px up, calculate safe distance
-          const targetY = startY + 200
+          x = startX + t1 * 80 // Slight rightward movement
+          // Fly upward significantly to create "explosion" effect
+          const targetY = startY + 250 // Fly 250px upward
           y = Math.min(targetY * t1 + startY * (1 - t1), maxY - loopRadius) // Stay below maxY with margin
         } else if (t < 0.7) {
           // Complete the loop-de-loop (clamped to safe area)
@@ -461,7 +475,7 @@ export default function ButtonToBirdThreeJS({
           const angle = t2 * Math.PI * 2
           const loopCenterX = startX + 150
           // Clamp loop center to ensure full loop stays below header
-          const desiredLoopY = startY + 200
+          const desiredLoopY = startY + 250 // Match the upward explosion distance
           const loopCenterY = Math.min(desiredLoopY, maxY - loopRadius)
           x = loopCenterX + Math.sin(angle) * loopRadius
           y = loopCenterY - Math.cos(angle) * loopRadius
@@ -489,7 +503,10 @@ export default function ButtonToBirdThreeJS({
     
     // Animation function (EXACT from button-to-bird.html)
     const animateThreeJS = () => {
-      if (!threeJsActiveRef.current) return
+      if (!threeJsActiveRef.current) {
+        console.log('⏸️ Animation stopped - threeJsActiveRef is false')
+        return
+      }
       
       animationFrameRef.current = requestAnimationFrame(animateThreeJS)
       
@@ -498,7 +515,16 @@ export default function ButtonToBirdThreeJS({
       const waypoints = waypointsRef.current
       const currentWaypoint = currentWaypointRef.current
       
-      if (!boid || !bird || !rendererRef.current || !cameraRef.current || !sceneRef.current) return
+      if (!boid || !bird || !rendererRef.current || !cameraRef.current || !sceneRef.current) {
+        console.log('⏸️ Animation stopped - missing refs', {
+          hasBoid: !!boid,
+          hasBird: !!bird,
+          hasRenderer: !!rendererRef.current,
+          hasCamera: !!cameraRef.current,
+          hasScene: !!sceneRef.current
+        })
+        return
+      }
       
       // Use boid physics to smoothly move toward next waypoint
       if (currentWaypoint < waypoints.length) {
@@ -509,9 +535,13 @@ export default function ButtonToBirdThreeJS({
         
         bird.position.copy(boid.position)
         
-        // Move to next waypoint when close enough - larger threshold for faster progression
-        if (boid.position.distanceTo(target) < 50) {
+        // Move to next waypoint when close enough - smaller threshold for slower, more precise movement
+        const distance = boid.position.distanceTo(target)
+        if (distance < 50) { // Smaller threshold for slower, more deliberate movement
           currentWaypointRef.current++
+          if (currentWaypointRef.current % 5 === 0) {
+            console.log(`📍 Reached waypoint ${currentWaypointRef.current}/${waypoints.length}, distance: ${distance.toFixed(2)}`)
+          }
         }
         
         // Calculate rotation based on velocity (matching HTML reference)
@@ -542,15 +572,17 @@ export default function ButtonToBirdThreeJS({
           cancelAnimationFrame(animationFrameRef.current)
         }
         
-        console.log('✅ Three.js bird animation complete')
+        console.log('✅ Three.js bird animation complete - bird has flown offscreen')
         
-        // Call completion callbacks immediately - no delays
+        // Call onBirdsFormed when animation completes (bird has flown away)
+        if (onBirdsFormed) {
+          console.log('🐦 Calling onBirdsFormed - button bird animation complete')
+          onBirdsFormed()
+        }
+        
+        // Call completion callback
         if (onAnimationComplete) {
           onAnimationComplete()
-        }
-        // Call onBirdsFormed immediately when animation actually completes
-        if (onBirdsFormed) {
-          onBirdsFormed()
         }
       }
       
@@ -562,88 +594,16 @@ export default function ButtonToBirdThreeJS({
 
     animationStartedRef.current = true
 
-    // Step 1: Start CSS morph IMMEDIATELY
-    console.log('🎬 Step 1: Starting CSS morph - button will fold into triangle')
+    // NO CSS MORPHING - Button will transform directly into bird
+    console.log('🔄 Button will transform directly into bird - smooth fade and scale')
     setButtonTextVisible(false)
     
     if (!buttonElement) {
-      console.error('❌ No button element for CSS morphing')
+      console.error('❌ No button element for transformation')
       return
     }
     
-    // RESET ALL CSS VARIABLES to initial button state before animation
-    console.log('🔄 Resetting button to initial state before animation')
-    
-    // Ensure button is fully visible
-    buttonElement.style.opacity = '1'
-    buttonElement.style.visibility = 'visible'
-    buttonElement.style.display = 'inline-block'
-    
-    // Reset animation CSS variables
-    buttonElement.style.setProperty('--plane-opacity', '1')
-    buttonElement.style.setProperty('--text-opacity', '1')
-    buttonElement.style.setProperty('--border-radius', '7')
-    buttonElement.style.setProperty('--rotate', '0')
-    buttonElement.style.setProperty('--plane-x', '0')
-    buttonElement.style.setProperty('--plane-y', '0')
-    
-    // Reset background colors to ensure shapes are visible
-    buttonElement.style.setProperty('--left-wing-background', '#DDC57A')
-    buttonElement.style.setProperty('--right-wing-background', '#DDC57A')
-    buttonElement.style.setProperty('--left-body-background', '#DDC57A')
-    buttonElement.style.setProperty('--right-body-background', '#DDC57A')
-    
-    // Reset wing positions to rectangle (initial button state from HTML)
-    buttonElement.style.setProperty('--left-wing-first-x', '0')
-    buttonElement.style.setProperty('--left-wing-first-y', '0')
-    buttonElement.style.setProperty('--left-wing-second-x', '50')
-    buttonElement.style.setProperty('--left-wing-second-y', '0')
-    buttonElement.style.setProperty('--left-wing-third-x', '0')
-    buttonElement.style.setProperty('--left-wing-third-y', '100')
-    buttonElement.style.setProperty('--right-wing-first-x', '50')
-    buttonElement.style.setProperty('--right-wing-first-y', '0')
-    buttonElement.style.setProperty('--right-wing-second-x', '100')
-    buttonElement.style.setProperty('--right-wing-second-y', '0')
-    buttonElement.style.setProperty('--right-wing-third-x', '100')
-    buttonElement.style.setProperty('--right-wing-third-y', '100')
-    // Reset body positions
-    buttonElement.style.setProperty('--left-body-first-x', '50')
-    buttonElement.style.setProperty('--left-body-first-y', '0')
-    buttonElement.style.setProperty('--left-body-second-x', '50')
-    buttonElement.style.setProperty('--left-body-second-y', '100')
-    buttonElement.style.setProperty('--left-body-third-x', '0')
-    buttonElement.style.setProperty('--left-body-third-y', '100')
-    buttonElement.style.setProperty('--right-body-first-x', '50')
-    buttonElement.style.setProperty('--right-body-first-y', '0')
-    buttonElement.style.setProperty('--right-body-second-x', '50')
-    buttonElement.style.setProperty('--right-body-second-y', '100')
-    buttonElement.style.setProperty('--right-body-third-x', '100')
-    buttonElement.style.setProperty('--right-body-third-y', '100')
-    
-    // Force a reflow to ensure CSS is applied
-    void buttonElement.offsetWidth
-    
-    // Button should now be visible and in initial state
-    console.log('👁️ Button reset and ready for animation:', {
-      hasActiveClass: buttonElement.classList.contains('active'),
-      computedOpacity: window.getComputedStyle(buttonElement).opacity,
-      computedVisibility: window.getComputedStyle(buttonElement).visibility,
-      computedPosition: window.getComputedStyle(buttonElement).position,
-      planeOpacity: buttonElement.style.getPropertyValue('--plane-opacity'),
-      borderRadius: buttonElement.style.getPropertyValue('--border-radius'),
-      leftWingBg: buttonElement.style.getPropertyValue('--left-wing-background'),
-      hasLeftDiv: !!buttonElement.querySelector('.left'),
-      hasRightDiv: !!buttonElement.querySelector('.right')
-    })
-    
-    // Get CSS variable helper (from HTML code)
-    const getVar = (variable: string) => {
-      return getComputedStyle(buttonElement).getPropertyValue(variable)
-    }
-    
-    // Execute the HTML's JavaScript code directly on the button
-    // This is the EXACT code from button-to-bird.html that should run
-    // In HTML, it runs on click, but here we trigger it programmatically after 'active' is set
+    // Execute the transformation animation directly - no morphing/folding
     const executeHTMLAnimation = () => {
       if (!buttonElement) return
       
@@ -659,200 +619,376 @@ export default function ButtonToBirdThreeJS({
         rightDiv: buttonElement.querySelector('.right')
       })
       
-      // Helper function to force Safari to repaint (fixes clip-path animation issues)
-      const forceSafariRepaint = () => {
-        if (buttonElement) {
-          // Force a reflow in Safari by reading offsetHeight
-          void buttonElement.offsetHeight
-          // Force repaint by toggling a transform
-          const currentTransform = buttonElement.style.transform
-          buttonElement.style.transform = 'translateZ(0.001px)'
-          void buttonElement.offsetHeight
-          buttonElement.style.transform = currentTransform
-        }
-      }
-      
-      // EXACT animation from button-to-bird.html
-      // Fold into BIRD shape (matching boid geometry - two triangular wings)
-      // Use explicit timeline for better cross-browser timing control
-      const morphTimeline = gsap.timeline()
-      
-      morphTimeline.to(buttonElement, {
-        // Collapse to horizontal line
-        '--left-wing-first-x': 0,
-        '--left-wing-first-y': 50,
-        '--left-wing-second-x': 50,
-        '--left-wing-second-y': 50,
-        '--left-wing-third-x': 0,
-        '--left-wing-third-y': 50,
-        '--right-wing-first-x': 50,
-        '--right-wing-first-y': 50,
-        '--right-wing-second-x': 100,
-        '--right-wing-second-y': 50,
-        '--right-wing-third-x': 100,
-        '--right-wing-third-y': 50,
-        '--border-radius': 0,
-        duration: 0.2,
-        ease: 'power2.inOut',
-        onUpdate: forceSafariRepaint,
-        force3D: true
-      }).to(buttonElement, {
-        // Form bird wings (wider like boid)
-        '--left-wing-first-x': 50,
-        '--left-wing-first-y': 50,
-        '--left-wing-second-x': 0,
-        '--left-wing-second-y': 55,
-        '--left-wing-third-x': 50,
-        '--left-wing-third-y': 70,
-        '--right-wing-first-x': 50,
-        '--right-wing-first-y': 50,
-        '--right-wing-second-x': 100,
-        '--right-wing-second-y': 55,
-        '--right-wing-third-x': 50,
-        '--right-wing-third-y': 70,
-        '--left-body-first-x': 50,
-        '--left-body-first-y': 50,
-        '--left-body-second-x': 50,
-        '--left-body-second-y': 50,
-        '--left-body-third-x': 50,
-        '--left-body-third-y': 50,
-        '--right-body-first-x': 50,
-        '--right-body-first-y': 50,
-        '--right-body-second-x': 50,
-        '--right-body-second-y': 50,
-        '--right-body-third-x': 50,
-        '--right-body-third-y': 50,
-        duration: 0.3,
-        ease: 'power2.inOut',
-        onUpdate: forceSafariRepaint,
-        force3D: true
+      // Updated animation: Button fades out as bird appears and flies away
+      // Start bird immediately, fade button simultaneously
+      console.log('🔍 Checking refs for animation:', {
+        hasButtonElement: !!buttonElement,
+        hasButtonPosition: !!buttonPosition,
+        hasBoid: !!boidRef.current,
+        hasBirdMesh: !!birdMeshRef.current,
+        hasCreateLoopWaypoints: !!createLoopWaypointsRef.current,
+        hasAnimateThreeJS: !!animateThreeJSRef.current
       })
       
-      // Wing flapping before takeoff (EXACT from HTML)
-      const flapTimeline = gsap.timeline({ delay: 0 }) // No delay - start immediately
-      
-      // Flap 3 times
-      for (let i = 0; i < 3; i++) {
-        flapTimeline.to(buttonElement, {
-          '--left-wing-third-y': 55,
-          '--right-wing-third-y': 55,
-          duration: 0.15,
-          onUpdate: forceSafariRepaint,
-          force3D: true
-        }).to(buttonElement, {
-          '--left-wing-third-y': 70,
-          '--right-wing-third-y': 70,
-          duration: 0.15,
-          onUpdate: forceSafariRepaint,
-          force3D: true
+      if (buttonElement && buttonPosition && boidRef.current && birdMeshRef.current && createLoopWaypointsRef.current && animateThreeJSRef.current) {
+        // Use the locked buttonPosition instead of recalculating - this ensures bird starts exactly where button is
+        const buttonCenterX = buttonPosition.left + buttonPosition.width / 2 - window.innerWidth / 2
+        const buttonCenterY = -(buttonPosition.top + buttonPosition.height / 2 - window.innerHeight / 2)
+        
+        console.log('📍 Bird starting position (from locked button position):', {
+          buttonPosition,
+          buttonCenterX,
+          buttonCenterY,
+          windowSize: { width: window.innerWidth, height: window.innerHeight }
         })
-      }
-      
-      // After flapping, transition to Three.js (EXACT from button-to-bird.html)
-      flapTimeline.to(buttonElement, {
-        '--plane-opacity': 0,
-        duration: 0.2,
-        onUpdate: forceSafariRepaint,
-        force3D: true,
-        onComplete() {
-          console.log('✅ CSS bird flew offscreen - starting Three.js bird animation')
+        
+        // Position bird at button location (exact center of button)
+        boidRef.current.position.set(buttonCenterX, buttonCenterY, 0)
+        if (birdMeshRef.current) {
+          birdMeshRef.current.position.copy(boidRef.current.position)
+        }
+        
+        // CRITICAL: Lock button position with !important BEFORE any animations
+        // Use the locked buttonPosition to ensure it stays exactly where it was
+        if (buttonElement && buttonPosition) {
+          buttonElement.style.setProperty('position', 'fixed', 'important')
+          buttonElement.style.setProperty('left', `${buttonPosition.left}px`, 'important')
+          buttonElement.style.setProperty('top', `${buttonPosition.top}px`, 'important')
+          buttonElement.style.setProperty('width', `${buttonPosition.width}px`, 'important')
+          buttonElement.style.setProperty('height', `${buttonPosition.height}px`, 'important')
+          buttonElement.style.setProperty('margin', '0', 'important')
+          buttonElement.style.setProperty('padding', '8px 24px', 'important')
+          buttonElement.style.setProperty('transform', 'none', 'important')
+          buttonElement.style.setProperty('transform-origin', 'center center', 'important')
+          buttonElement.style.setProperty('will-change', 'transform, opacity', 'important')
+          buttonElement.style.setProperty('--rotate', '0', 'important')
+          buttonElement.style.setProperty('--plane-x', '0', 'important')
+          buttonElement.style.setProperty('--plane-y', '0', 'important')
+          // Force reflow to ensure position is locked
+          void buttonElement.offsetWidth
           
-          // Hide button completely
-          if (buttonElement) {
-            buttonElement.style.opacity = '0'
-            buttonElement.style.visibility = 'hidden'
-            buttonElement.style.pointerEvents = 'none'
-            buttonElement.style.display = 'none'
+          console.log('🔒 Button position locked at:', {
+            left: buttonPosition.left,
+            top: buttonPosition.top,
+            width: buttonPosition.width,
+            height: buttonPosition.height
+          })
+        }
+        
+        // Ensure scene has the bird and make it visible
+        if (sceneRef.current && birdMeshRef.current) {
+          // Make sure bird is in the scene
+          if (!sceneRef.current.children.includes(birdMeshRef.current)) {
+            sceneRef.current.add(birdMeshRef.current)
+            console.log('➕ Added bird to scene')
           }
-          
-          // Start Three.js bird with physics (EXACT from button-to-bird.html)
-          if (buttonElement && buttonPosition && boidRef.current && birdMeshRef.current && createLoopWaypointsRef.current && animateThreeJSRef.current) {
-            const buttonRect = buttonElement.getBoundingClientRect()
-            const buttonCenterX = buttonRect.left + buttonRect.width / 2 - window.innerWidth / 2
-            const buttonCenterY = -(buttonRect.top + buttonRect.height / 2 - window.innerHeight / 2)
+          // Bird will be set to button size in the animation below
+          // Ensure bird position is set
+          birdMeshRef.current.position.copy(boidRef.current.position)
+          console.log('👁️ Bird made visible and ready for animation', {
+            position: birdMeshRef.current.position,
+            visible: birdMeshRef.current.visible,
+            inScene: sceneRef.current.children.includes(birdMeshRef.current),
+            sceneChildren: sceneRef.current.children.length
+          })
+        } else {
+          console.error('❌ Cannot start bird animation - missing scene or bird mesh', {
+            hasScene: !!sceneRef.current,
+            hasBird: !!birdMeshRef.current
+          })
+        }
+        
+        // CRITICAL: Ensure button is fully visible and ready before explosion
+        if (buttonElement) {
+          buttonElement.style.opacity = '1'
+          buttonElement.style.visibility = 'visible'
+          buttonElement.style.display = 'inline-block'
+          // Force a reflow to ensure button is visible
+          void buttonElement.offsetWidth
+        }
+        
+        // CRITICAL: Morph button shape into bird shape using Three.js
+        // Create a plane that starts as button rectangle and morphs to bird triangle
+        const transformationDuration = 1.2 // 1200ms for smooth morphing transformation
+        const pauseBeforeFlight = 2000 // 2000ms (2 seconds) pause after bird appears before flight starts
+        const wingFlapStartDelay = 500 // Start wing flapping 500ms after morph completes
+        
+        // Calculate button size in Three.js world coordinates
+        const buttonWidthWorld = (buttonPosition.width / window.innerWidth) * width
+        const buttonHeightWorld = (buttonPosition.height / window.innerHeight) * height
+        
+        // Use the EXACT same bird geometry structure, but scale it to button size initially
+        // This guarantees the morphed shape is identical to the bird
+        const morphGeometry = createBirdGeometry() // Use the exact same geometry function
+        
+        // Calculate scale to make bird match button size initially
+        // Bird base width is 4 units (from -2 to 2), at scale 1
+        // We want it to match button width
+        const birdBaseWidth = 4 // Bird spans from -2 to 2 = 4 units
+        const initialScale = buttonWidthWorld / birdBaseWidth
+        
+        // Start with bird geometry scaled to button size
+        // Store original bird vertices (at scale 1)
+        const birdBaseVertices = new Float32Array([
+          0, 0, 0,      // 0: nose
+          -1, -1, 0,    // 1: bottom left back
+          1, -1, 0,     // 2: bottom right back
+          -1, 1, 0,     // 3: top left back
+          -2, 0, 0,     // 4: left wing tip
+          2, 0, 0,      // 5: right wing tip
+        ])
+        
+        // Scale bird vertices to button size (initial state)
+        const buttonScaledVertices = new Float32Array(birdBaseVertices.length)
+        for (let i = 0; i < birdBaseVertices.length; i += 3) {
+          buttonScaledVertices[i] = birdBaseVertices[i] * initialScale
+          buttonScaledVertices[i + 1] = birdBaseVertices[i + 1] * initialScale
+          buttonScaledVertices[i + 2] = birdBaseVertices[i + 2] * initialScale
+        }
+        
+        // Final bird vertices at scale 3 (matching the actual bird mesh)
+        const birdScale = 3
+        const birdFinalVertices = new Float32Array([
+          0, 0, 0,                          // 0: nose
+          -1 * birdScale, -1 * birdScale, 0,  // 1: bottom left back
+          1 * birdScale, -1 * birdScale, 0,   // 2: bottom right back
+          -1 * birdScale, 1 * birdScale, 0,   // 3: top left back
+          -2 * birdScale, 0, 0,               // 4: left wing tip
+          2 * birdScale, 0, 0,                // 5: right wing tip
+        ])
+        
+        // Set initial vertices to button-scaled bird shape
+        morphGeometry.setAttribute('position', new THREE.BufferAttribute(buttonScaledVertices, 3))
+        morphGeometry.computeVertexNormals()
+        
+        const morphMaterial = new THREE.MeshPhongMaterial({
+          color: 0xDDC57A, // Match button color
+          transparent: true,
+          opacity: 1.0,
+          side: THREE.DoubleSide
+        })
+        const morphMesh = new THREE.Mesh(morphGeometry, morphMaterial)
+        morphMesh.position.set(buttonCenterX, buttonCenterY, 0)
+        morphMesh.visible = true
+        scene.add(morphMesh)
+        
+        // Store vertices for morphing
+        const originalPositions = new Float32Array(buttonScaledVertices)
+        const targetPositions = birdFinalVertices
+        
+        // Hide HTML button immediately and show morphing plane
+        if (buttonElement && buttonPosition) {
+          buttonElement.style.setProperty('opacity', '0', 'important')
+          buttonElement.style.setProperty('visibility', 'hidden', 'important')
+        }
+        
+        // Start rendering loop immediately to show the morphing plane
+        const startRenderLoop = () => {
+          const render = () => {
+            if (rendererRef.current && sceneRef.current && cameraRef.current) {
+              rendererRef.current.render(sceneRef.current, cameraRef.current)
+              requestAnimationFrame(render)
+            }
+          }
+          render()
+        }
+        startRenderLoop()
+        
+        console.log('🔄 Starting button-to-bird morph:', {
+          buttonSize: { width: buttonWidthWorld, height: buttonHeightWorld },
+          birdScale: birdScale,
+          position: { x: buttonCenterX, y: buttonCenterY }
+        })
+        
+        const tl = gsap.timeline({ immediateRender: false })
+        
+        // Morph geometry from rectangle to bird triangle shape
+        const morphProgress = { value: 0 }
+        tl.to(morphProgress, {
+          value: 1,
+          duration: transformationDuration,
+          ease: 'power2.out',
+          onUpdate: () => {
+            const t = morphProgress.value
+            const positions = morphGeometry.attributes.position.array as Float32Array
             
-            // Set boid starting position
-            boidRef.current.position.set(buttonCenterX, buttonCenterY, 0)
-            boidRef.current.velocity.set(0.5, -0.5, 0)
+            // Smoothly interpolate each vertex from rectangle to bird shape
+            for (let i = 0; i < positions.length; i += 3) {
+              const vertexIndex = i / 3
+              const startX = originalPositions[i]
+              const startY = originalPositions[i + 1]
+              const startZ = originalPositions[i + 2]
+              
+              const targetX = targetPositions[vertexIndex * 3] || startX
+              const targetY = targetPositions[vertexIndex * 3 + 1] || startY
+              const targetZ = targetPositions[vertexIndex * 3 + 2] || startZ
+              
+              // Smooth interpolation
+              positions[i] = startX + (targetX - startX) * t
+              positions[i + 1] = startY + (targetY - startY) * t
+              positions[i + 2] = startZ + (targetZ - startZ) * t
+            }
             
-            // Create waypoints
-            const waypoints = createLoopWaypointsRef.current(buttonCenterX, buttonCenterY)
-            waypointsRef.current = waypoints
-            currentWaypointRef.current = 0
-            earlyCallbackTriggeredRef.current = false // Reset early callback flag
+            morphGeometry.attributes.position.needsUpdate = true
+            morphGeometry.computeVertexNormals()
+          },
+          onComplete: () => {
+            // After morphing completes, hide morphing plane and show actual bird
+            morphMesh.visible = false
+            scene.remove(morphMesh)
             
-            // Ensure bird is visible and positioned correctly
+            // Show the actual bird mesh - it should already be at the exact same position and scale
+            // as the morphed shape, so it should be a seamless transition
             if (birdMeshRef.current) {
-              birdMeshRef.current.position.copy(boidRef.current.position)
               birdMeshRef.current.visible = true
-              console.log('👁️ Bird mesh made visible at position:', birdMeshRef.current.position)
+              birdMeshRef.current.scale.set(3, 3, 3) // Same scale as morphed shape
+              birdMeshRef.current.position.set(buttonCenterX, buttonCenterY, 0)
+              birdMeshRef.current.rotation.set(0, 0, 0) // Ensure no rotation
+              
+              // Initialize bird phase for wing flapping
+              ;(birdMeshRef.current as any).phase = 0
+              
+              // Start wing flapping animation after a short delay
+              setTimeout(() => {
+                if (birdMeshRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
+                  // Wing flapping animation loop
+                  const flapStartTime = Date.now()
+                  const flapDuration = pauseBeforeFlight - wingFlapStartDelay // Flap for remaining pause time
+                  
+                  const flapAnimation = () => {
+                    if (!birdMeshRef.current || !sceneRef.current) return
+                    
+                    const elapsed = (Date.now() - flapStartTime) / 1000 // Convert to seconds
+                    if (elapsed < flapDuration / 1000) {
+                      // Update wing flapping
+                      const birdAny = birdMeshRef.current as any
+                      if (birdAny.phase === undefined) birdAny.phase = 0
+                      birdAny.phase += 0.3 // Consistent increment per frame
+                      const flapAmount = Math.sin(birdAny.phase) * 5
+                      
+                      // Update wing vertices (indices 4 and 5 in the geometry)
+                      if (birdMeshRef.current.geometry.attributes.position && birdMeshRef.current.geometry.attributes.position.array) {
+                        const positions = birdMeshRef.current.geometry.attributes.position.array as Float32Array
+                        if (positions.length > 16) {
+                          positions[13] = flapAmount // vertex 4 y
+                          positions[16] = flapAmount // vertex 5 y
+                          birdMeshRef.current.geometry.attributes.position.needsUpdate = true
+                        }
+                      }
+                      
+                      // Render the scene
+                      if (rendererRef.current && cameraRef.current) {
+                        rendererRef.current.render(sceneRef.current, cameraRef.current)
+                      }
+                      
+                      requestAnimationFrame(flapAnimation)
+                    }
+                  }
+                  flapAnimation()
+                }
+              }, wingFlapStartDelay)
+              
+              // Make sure the bird geometry matches exactly
+              console.log('🐦 Bird mesh shown after morph:', {
+                position: birdMeshRef.current.position,
+                scale: birdMeshRef.current.scale,
+                rotation: birdMeshRef.current.rotation,
+                visible: birdMeshRef.current.visible
+              })
             }
             
-            // Ensure scene has the bird
-            if (sceneRef.current && birdMeshRef.current && !sceneRef.current.children.includes(birdMeshRef.current)) {
-              sceneRef.current.add(birdMeshRef.current)
-              console.log('➕ Added bird to scene')
+            // Hide button completely
+            if (buttonElement && buttonPosition) {
+              buttonElement.style.setProperty('position', 'fixed', 'important')
+              buttonElement.style.setProperty('left', `${buttonPosition.left}px`, 'important')
+              buttonElement.style.setProperty('top', `${buttonPosition.top}px`, 'important')
+              buttonElement.style.setProperty('transform', 'none', 'important')
+              buttonElement.style.setProperty('opacity', '0', 'important')
+              buttonElement.style.setProperty('visibility', 'hidden', 'important')
+              buttonElement.style.setProperty('display', 'none', 'important')
+              buttonElement.style.setProperty('pointer-events', 'none', 'important')
+              buttonElement.classList.remove('active')
             }
-            
-            // Use GSAP's delayedCall instead of setTimeout for consistent cross-browser timing
-            // This syncs with GSAP's ticker which is more reliable across browsers
-            gsap.delayedCall(0.05, () => {
+          }
+        }, 0)
+        
+        // Animate bird: start invisible, then appear after morph completes
+        // (Bird will be shown in morph onComplete)
+        tl.to({}, {
+          duration: transformationDuration,
+          onComplete: () => {
+            // Pause after bird appears (with wing flapping), then start flight
+            setTimeout(() => {
+              // Start flight animation with slower initial velocity
+              if (boidRef.current) {
+                boidRef.current.velocity.set(0.3, -0.3, 0) // Slower speed (reduced from 0.5, -0.5)
+              }
+              
+              const waypoints = createLoopWaypointsRef.current!(buttonCenterX, buttonCenterY)
+              waypointsRef.current = waypoints
+              currentWaypointRef.current = 0
+              earlyCallbackTriggeredRef.current = false // Reset early callback flag
+              
+              if (birdMeshRef.current) {
+                console.log('👁️ Bird mesh made visible at position:', birdMeshRef.current.position)
+              }
+              
+              // Ensure button is completely hidden before starting flight
+              // CRITICAL: Use setProperty with !important to override CSS .active class rules
+              if (buttonElement && buttonPosition) {
+                buttonElement.style.setProperty('position', 'fixed', 'important')
+                buttonElement.style.setProperty('left', `${buttonPosition.left}px`, 'important')
+                buttonElement.style.setProperty('top', `${buttonPosition.top}px`, 'important')
+                buttonElement.style.setProperty('transform', 'none', 'important')
+                buttonElement.style.setProperty('opacity', '0', 'important') // Override CSS .active opacity: 1 !important
+                buttonElement.style.setProperty('visibility', 'hidden', 'important') // Override CSS .active visibility: visible !important
+                buttonElement.style.setProperty('display', 'none', 'important') // Override CSS .active display: inline-block !important
+                buttonElement.style.setProperty('pointer-events', 'none', 'important')
+                // Remove active class to prevent CSS from re-showing the button
+                buttonElement.classList.remove('active')
+              }
+              
+              // Start animation immediately - no delay
               threeJsActiveRef.current = true
               if (animateThreeJSRef.current) {
+                // Start the animation loop
                 animateThreeJSRef.current()
               }
               
+              // Verify bird is in scene and visible
+              const birdInScene = sceneRef.current?.children.includes(birdMeshRef.current || {} as THREE.Mesh)
               console.log('🐦 Three.js bird animation started', {
                 startPos: { x: buttonCenterX, y: buttonCenterY },
                 waypointsCount: waypoints.length,
                 birdVisible: birdMeshRef.current?.visible,
-                birdInScene: sceneRef.current?.children.includes(birdMeshRef.current || {} as THREE.Mesh)
+                birdInScene: birdInScene,
+                sceneChildren: sceneRef.current?.children.length
               })
-            })
-          } else {
-            console.error('❌ Cannot start Three.js bird - missing refs', {
-              hasButton: !!buttonElement,
-              hasPosition: !!buttonPosition,
-              hasBoid: !!boidRef.current,
-              hasBird: !!birdMeshRef.current,
-              hasCreateWaypoints: !!createLoopWaypointsRef.current,
-              hasAnimate: !!animateThreeJSRef.current
-            })
+              
+              // Don't call onBirdsFormed here - wait until animation completes
+              // The animation loop will call it when the bird finishes flying
+            }, pauseBeforeFlight) // Brief pause after transformation before flight starts
           }
-        }
-      })
-      
-      // Color changes (EXACT from HTML)
-      gsap.to(buttonElement, {
-        keyframes: [{
-          '--text-opacity': 0,
-          '--border-radius': 0,
-          '--left-wing-background': getVar('--primary-darkest'),
-          '--right-wing-background': getVar('--primary-darkest'),
-          duration: 0.1,
-          onUpdate: forceSafariRepaint,
-          force3D: true
-        }, {
-          '--left-wing-background': getVar('--primary'),
-          '--right-wing-background': getVar('--primary'),
-          duration: 0.1,
-          onUpdate: forceSafariRepaint,
-          force3D: true
-        }, {
-          '--left-body-background': getVar('--primary-dark'),
-          '--right-body-background': getVar('--primary-darkest'),
-          duration: 0.4,
-          onUpdate: forceSafariRepaint,
-          force3D: true
-        }]
-        // Removed the "sent" success message animation
-      })
+        }, 0) // Start at time 0 - synchronized with button transformation
+        
+        // CRITICAL: Start the timeline IMMEDIATELY - this triggers the synchronized transformation
+        console.log('🔄 Starting synchronized button-to-bird transformation')
+        tl.play() // Start timeline immediately
+      } else {
+        console.error('❌ Cannot start Three.js bird animation - missing refs', {
+          hasButton: !!buttonElement,
+          hasButtonPosition: !!buttonPosition,
+          hasBoid: !!boidRef.current,
+          hasBirdMesh: !!birdMeshRef.current,
+          hasCreateLoopWaypoints: !!createLoopWaypointsRef.current,
+          hasAnimateThreeJS: !!animateThreeJSRef.current
+        })
+      }
     }
     
-    // Use GSAP's delayedCall for more reliable cross-browser timing
-    // This ensures proper initialization without race conditions
-    gsap.delayedCall(0.016, () => {
-      // 16ms = 1 frame at 60fps, ensures CSS is applied and browser has painted
+    // Start animation IMMEDIATELY - no delay to ensure button explosion happens right when bird appears
+    // Use requestAnimationFrame to ensure DOM is ready, but don't delay unnecessarily
+    requestAnimationFrame(() => {
       executeHTMLAnimation()
     })
 
