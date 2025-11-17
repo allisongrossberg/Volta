@@ -2618,8 +2618,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
         if (trail.length > 0) {
           // Clear canvas completely
           ctx.fillStyle = '#000000'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        
           // Draw trail points with age-based intensity
           const baseRadius = canvas.width * touchRadiusRef.current
           
@@ -2658,8 +2658,8 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
           }
           
           // Update texture only when we drew something
-          if (touchTextureRef.current) {
-            touchTextureRef.current.needsUpdate = true
+        if (touchTextureRef.current) {
+          touchTextureRef.current.needsUpdate = true
           }
         }
       }
