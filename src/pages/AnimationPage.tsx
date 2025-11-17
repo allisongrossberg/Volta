@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ExplodingTextToBirds from '../components/ExplodingTextToBirds'
 import ButtonToBirdThreeJS from '../components/ButtonToBirdThreeJS'
 import AboutModal from '../components/AboutModal'
+import InfoPopover from '../components/InfoPopover'
 import CustomSelect from '../components/CustomSelect'
 import { generateText, LITERARY_FORMS, type LiteraryForm } from '../services/textGeneration'
 import { generateImage } from '../services/imageGeneration'
@@ -392,7 +393,28 @@ function AnimationPage() {
           </div>
         )}
         {phase === 'output' && literaryForm && (
-          <span>{literaryForm}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>{literaryForm}</span>
+            <InfoPopover
+              position="top"
+              content={
+                <>
+                  <p>
+                    <strong>AI-Generated Content:</strong> The literary texts and images in Volta are generated using artificial intelligence.
+                  </p>
+                  <p>
+                    <strong>Text Generation:</strong> Uses Hugging Face models including Gemma-2, Falcon, Phi-3.5, and Llama-3.
+                  </p>
+                  <p>
+                    <strong>Image Generation:</strong> Uses Pollinations.AI with the Flux model.
+                  </p>
+                  <p>
+                    Please note that AI-generated content may contain inaccuracies, biases, or unexpected interpretations.
+                  </p>
+                </>
+              }
+            />
+          </div>
         )}
       </div>
       
@@ -427,8 +449,32 @@ function AnimationPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="hypothesis">
+                <label htmlFor="hypothesis" style={{ display: 'flex', alignItems: 'center' }}>
                   TRANSFORM YOUR HYPOTHESIS INTO A WORK OF ART
+                  <InfoPopover
+                    position="top"
+                    content={
+                      <>
+                        <p>
+                          <strong>Try it:</strong> Enter a scientific hypothesis and watch it transform into poetry, song, or myth.
+                        </p>
+                        <p>
+                          <strong>Examples:</strong>
+                        </p>
+                        <ul>
+                          <li>"If I have green eyes and I have a child, my child will have green eyes"</li>
+                          <li>"If I exercise regularly, my cardiovascular health will improve"</li>
+                          <li>"If I go outside at night, I will see more stars when the Moon is not visible than when it is full"</li>
+                        </ul>
+                        <p>
+                          <strong>Note:</strong> Content is AI-generated. It may take a moment for the text and image to appear.
+                        </p>
+                        <p>
+                          Please note that AI-generated content may contain inaccuracies, biases, or unexpected interpretations.
+                        </p>
+                      </>
+                    }
+                  />
                 </label>
                 <div className={`textarea-wrapper ${isFocused ? 'focused' : ''}`}>
                   <textarea

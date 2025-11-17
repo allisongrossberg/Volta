@@ -126,6 +126,11 @@
   margin-bottom: 0;
 }
 
+.about-modal-text strong {
+  font-weight: 600;
+  color: #000000;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .about-modal-overlay {
