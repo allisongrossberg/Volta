@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
-import '../styles/CircularLandingPage.css'
+import './CircularLandingPage.css'
 
 interface CircularLandingPageProps {
   onEnter: () => void
@@ -68,7 +68,7 @@ export default function CircularLandingPage({ onEnter }: CircularLandingPageProp
       },
     ]
 
-    circles.forEach((circle, index) => {
+    circles.forEach((circle) => {
       // Create group positioned at center - this will be rotated (like Codrops structure)
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       group.setAttribute('transform', `translate(${centerX}, ${centerY})`)

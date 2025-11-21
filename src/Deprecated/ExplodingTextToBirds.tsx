@@ -59,7 +59,6 @@ function ExplodingTextToBirds({ hypothesis, illustrationUrl, literaryText, onRev
   const exitTriggeredRef = useRef<boolean>(false) // Track if exit has been triggered
   const shouldExitBirdsRef = useRef<boolean>(false) // Ref version of shouldExitBirds for immediate access
   const mousePositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0)) // Mouse position in world space
-  const mouseRadiusRef = useRef<number>(50) // Radius of mouse influence (matching interactive-particles style)
   const outputReadyTriggeredRef = useRef<boolean>(false) // Track if onOutputReady has been called
   const particlesFormedTriggeredRef = useRef<boolean>(false) // Track if onParticlesFormed has been called
   const allBirdsRevealingStartTimeRef = useRef<number>(0) // Track when all birds first entered revealing phase
