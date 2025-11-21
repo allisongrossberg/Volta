@@ -1,0 +1,241 @@
+.home-page {
+  width: 100vw;
+  height: 100vh;
+  background: #0e0502;
+  position: relative;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.home-container {
+  width: 100%;
+  max-width: 100%;
+  padding: 3rem 6rem 2rem 6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 0 auto;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* VOLTA title at top */
+.home-title {
+  font-family: 'GFS Didot', 'Cormorant Garamond', 'Bodoni Moda', 'Didot', 'Baskerville', 'Times New Roman', serif;
+  font-size: clamp(8rem, 22vw, 18rem);
+  font-weight: 700;
+  color: #FFFFFF;
+  text-align: center;
+  letter-spacing: 0.12em;
+  margin: 0 auto 3rem auto;
+  padding: 0;
+  line-height: 0.85;
+  opacity: 0.98;
+  text-transform: uppercase;
+  font-style: normal;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+  font-variant-numeric: oldstyle-nums;
+  width: 100%;
+}
+
+/* Main content area - single column for input */
+.home-content {
+  width: 100%;
+  max-width: 100%;
+  align-items: center;
+  margin-top: 0;
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  padding: 0;
+}
+
+/* Read About Me link at bottom right */
+.home-about-link {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  left: auto;
+}
+
+.read-about-link {
+  font-family: 'Josefin Sans', sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  font-weight: 400;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.read-about-link:hover {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
+}
+
+/* Right side - form */
+.home-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 0;
+  margin-left: 0;
+  width: 100%;
+}
+
+.home-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  width: 100%;
+  max-width: clamp(30rem, 70vw, 45rem);
+  align-items: center;
+  margin: 0 auto;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.home-instructions {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
+  max-width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.textarea-wrapper {
+  position: relative;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.hypothesis-input {
+  width: 100%;
+  padding: 0.75rem 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  font-size: 1.125rem;
+  font-family: 'Josefin Sans', sans-serif;
+  color: #FFFFFF;
+  background: transparent;
+  resize: none;
+  outline: none;
+  transition: all 0.3s ease;
+  line-height: 1.7;
+  min-height: 80px;
+}
+
+.hypothesis-input:focus {
+  border-bottom-color: rgba(255, 255, 255, 0.5);
+  padding-bottom: 0.875rem;
+}
+
+.hypothesis-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+}
+
+.char-count {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+.home-submit-arrow {
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  font-size: 2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  padding: 0;
+  margin: 1rem auto 0 auto;
+  font-family: 'Josefin Sans', sans-serif;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.home-submit-arrow:hover {
+  opacity: 0.8;
+  transform: translateX(5px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Shake animation for empty input */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.hypothesis-input.shake {
+  animation: shake 0.5s;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .home-content {
+    grid-template-columns: 1fr;
+    gap: 4rem;
+  }
+  
+  .home-title {
+    margin: 1rem 0 3rem 0;
+  }
+  
+  .home-container {
+    padding: 3rem 4rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-container {
+    padding: 2rem;
+  }
+  
+  .home-title {
+    font-size: clamp(3rem, 15vw, 6rem);
+    margin: 1rem 0 2rem 0;
+  }
+  
+  .home-content {
+    gap: 3rem;
+  }
+}

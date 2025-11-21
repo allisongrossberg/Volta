@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import './InputPage.css';
 
 .output-page {
@@ -35,7 +35,7 @@
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
-/* Immersive WebGL Background - Full Screen */
+/* WebGL Background */
 .immersive-illustration-bg {
   position: absolute;
   top: 0;
@@ -132,7 +132,7 @@
 .literary-text {
   width: 100%;
   max-width: 100%; /* Use full slide-content width */
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 1rem !important; /* Slightly smaller font */
   font-weight: 400;
   line-height: 1.6; /* Tighter line height */

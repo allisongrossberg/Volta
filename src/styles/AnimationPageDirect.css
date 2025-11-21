@@ -1,0 +1,25 @@
+/* No scrolling on container - only transform animation */
+.animation-page-direct-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+.animation-page-direct-scroll::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera - force hide */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Ensure smooth animation with hardware acceleration */
+.animation-page-direct {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}

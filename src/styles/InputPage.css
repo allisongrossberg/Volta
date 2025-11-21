@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 .input-page {
   min-height: 100vh;
@@ -32,18 +32,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e5e5;
+  background: #1D1616;
+  border-bottom: none;
   z-index: 200;
 }
 
 .site-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Georgia', serif;
   font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #000000;
+  color: #FFFFFF;
   margin: 0 !important;
   padding-left: 2rem !important;
 }
@@ -52,15 +52,17 @@
   display: flex;
   gap: 2rem;
   align-items: center;
+  margin-left: auto;
+  padding-right: 3rem;
 }
 
 .header-link {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Georgia', serif;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #000000;
+  color: #FFFFFF;
   cursor: pointer;
   transition: opacity 0.2s ease;
   background: none;
@@ -69,7 +71,66 @@
 }
 
 .header-link:hover {
-  opacity: 0.6;
+  opacity: 0.7;
+}
+
+/* Responsive Header */
+@media (max-width: 768px) {
+  .top-header {
+    height: 70px;
+    padding: 0 1.5rem 0 0;
+  }
+
+  .site-title {
+    font-size: 1.25rem;
+    padding-left: 1.5rem !important;
+  }
+
+  .header-link {
+    font-size: 0.75rem;
+  }
+
+  .header-right {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-header {
+    height: 60px;
+    padding: 0 1rem 0 0;
+  }
+
+  .site-title {
+    font-size: 1.1rem;
+    padding-left: 1rem !important;
+    letter-spacing: 0.03em;
+  }
+
+  .header-link {
+    font-size: 0.6875rem;
+    letter-spacing: 0.03em;
+  }
+
+  .header-right {
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .top-header {
+    height: 90px;
+    padding: 0 4rem 0 0;
+  }
+
+  .site-title {
+    font-size: 1.75rem;
+    padding-left: 3rem !important;
+  }
+
+  .header-link {
+    font-size: 0.9375rem;
+  }
 }
 
 /* About Dropdown */
@@ -90,7 +151,7 @@
 }
 
 .about-text {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.875rem;
   font-weight: 400;
   color: #ffffff;
@@ -105,7 +166,7 @@
 .bottom-right {
   position: fixed;
   bottom: 2rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.8125rem;
   font-weight: 400;
   color: #000000;
@@ -177,7 +238,7 @@
 }
 
 .sidebar-label {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.8125rem;
   font-weight: 400;
   color: #000000;
@@ -210,7 +271,7 @@
 }
 
 .nav-number {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.75rem;
   font-weight: 400;
   color: #000000;
@@ -218,7 +279,7 @@
 }
 
 .nav-label {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.875rem;
   font-weight: 400;
   color: #000000;
@@ -253,7 +314,7 @@
 }
 
 .content-subtitle {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   color: #666666;
   font-size: 0.9375rem;
   font-weight: 400;
@@ -280,7 +341,7 @@
 }
 
 .form-group label {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-weight: 500;
   color: #000000;
   font-size: 1.25rem;
@@ -322,7 +383,7 @@
   border-bottom: 1px solid #e0e0e0;
   border-radius: 0;
   font-size: 1.125rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   resize: vertical;
   transition: all 0.2s ease;
   background: transparent;
@@ -422,7 +483,7 @@
   margin: 0;
   margin-top: 1.5rem;
   line-height: 24px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-weight: 500;
   font-size: 14px;
   background: none; /* Clip-path shapes provide the visual appearance */

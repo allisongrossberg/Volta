@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import './InputPage.css';
 
 .loading-page {
@@ -25,7 +25,7 @@
   border-bottom: 1px solid #e0e0e0;
   border-radius: 0;
   font-size: 1.125rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   resize: vertical;
   transition: all 0.2s ease;
   background: transparent;
@@ -104,7 +104,7 @@
 .final-text {
   width: 100%;
   max-width: 800px; /* Constrain width for readability */
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 1rem !important;
   font-weight: 400;
   line-height: 1.6;
@@ -138,7 +138,7 @@
 /* Removed spinner - using bird animation instead */
 
 .loading-text {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.9375rem;
   color: #000000;
   margin: 0;
@@ -147,7 +147,7 @@
 }
 
 .loading-subtext {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 0.9375rem;
   color: #666666;
   margin: 0;
@@ -164,7 +164,7 @@
 }
 
 .error-message h2 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'GFS Didot', serif;
   color: #8b5a3c;
   font-size: 1.8rem;
   margin: 0;

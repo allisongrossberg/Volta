@@ -1,0 +1,249 @@
+.detail-page {
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  background: #1D1616; /* Default background - fixed, no change on scroll */
+  overflow-y: auto;
+  /* Ensure background stays fixed */
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Custom scrollbar to match about modal style */
+.detail-page::-webkit-scrollbar {
+  width: 8px;
+}
+
+.detail-page::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.detail-page::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.detail-page::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Main Container - Single background for all content */
+.detail-container {
+  width: 100%;
+  min-height: 100vh;
+  background: #1D1616; /* Default, will be overridden by inline style */
+  color: #FFFFFF; /* Bright white text */
+  padding: 4rem 5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* Prevent background color changes on scroll */
+  background-attachment: fixed;
+}
+
+/* Navigation Arrow - Top Right */
+.detail-nav-arrow {
+  position: absolute;
+  top: 4rem;
+  right: 5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 2.5rem;
+  color: #FFFFFF;
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 300;
+  line-height: 1;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  display: inline-block;
+  z-index: 10;
+}
+
+.detail-nav-arrow:hover {
+  opacity: 0.7;
+  transform: translateX(-5px);
+}
+
+/* Content - Positioned next to image with nice typography */
+.detail-content {
+  position: fixed; /* Changed from absolute to fixed for stable positioning */
+  /* top is set dynamically in component based on text length */
+  left: 8rem; /* Moved to the right a bit */
+  width: 40%;
+  max-width: 600px;
+  z-index: 1; /* Behind image */
+  padding: 0;
+  /* Ensure content stays in place on resize */
+  transform: translateZ(0); /* Force hardware acceleration */
+  /* Prevent overlaps - ensure text doesn't extend too far right */
+  max-width: min(600px, calc(100vw - 18rem)); /* Leave space for image (5rem right + 50% width + padding) */
+}
+
+.detail-text {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  white-space: pre-line;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-align: left;
+}
+
+.detail-loading {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 1rem;
+  color: #FFFFFF;
+  opacity: 0.7;
+}
+
+/* Image Wrapper - On same background */
+.detail-image-wrapper {
+  position: fixed; /* Changed from absolute to fixed for stable positioning */
+  right: 5rem;
+  top: 10vh; /* Start near top */
+  width: 50%;
+  max-width: 900px;
+  z-index: 2; /* Above text */
+  /* Ensure image stays in place on resize */
+  transform: translateZ(0); /* Force hardware acceleration */
+  will-change: auto; /* Optimize for performance */
+  /* Prevent horizontal overlap with text */
+  min-width: 300px; /* Ensure image has minimum width */
+  /* Ensure image doesn't extend too far left */
+  max-width: min(900px, calc(100vw - 18rem)); /* Leave space for text (8rem left + 40% width + padding) */
+}
+
+.detail-image {
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  object-fit: contain;
+  display: block;
+  /* Prevent image from shifting */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+
+/* Responsive */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .detail-container {
+    padding: 3rem 4rem;
+  }
+  
+  .detail-image-wrapper {
+    right: 4rem;
+    width: 45%;
+    max-width: min(900px, calc(100vw - 16rem)); /* Ensure no horizontal overlap */
+    /* Maintain fixed positioning on resize */
+    position: fixed;
+  }
+  
+  .detail-nav-arrow {
+    top: 3rem;
+    right: 4rem;
+  }
+  
+  .detail-content {
+    top: 18vh !important; /* Override dynamic top for medium screens */
+    left: 6rem;
+    width: 45%;
+    max-width: min(600px, calc(100vw - 16rem)); /* Ensure no horizontal overlap */
+    /* Maintain fixed positioning on resize */
+    position: fixed;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-container {
+    padding: 1.5rem 1.5rem 3rem 1.5rem;
+    flex-direction: column;
+    min-height: auto;
+    padding-top: 10rem !important; /* Extra top padding: button (2rem/32px top + 120px height + 20px spacing) = ~172px = ~10.75rem, using 10rem for safety */
+  }
+  
+  .detail-image-wrapper {
+    position: relative !important; /* Force relative on mobile */
+    right: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 2rem 0 0 0;
+    order: 2; /* Image after text */
+    z-index: 1;
+  }
+  
+  .detail-image {
+    max-height: 60vh; /* Smaller max height on mobile */
+    width: 100%;
+    object-fit: contain;
+  }
+  
+  .detail-content {
+    position: relative !important; /* Force relative on mobile */
+    top: auto !important; /* Override dynamic positioning on mobile */
+    left: auto !important;
+    order: 1; /* Text first */
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 0 !important; /* Ensure no negative margin */
+    margin-bottom: 1.5rem;
+    padding: 0;
+    padding-left: 0 !important; /* Ensure no left padding that could cause overlap */
+    z-index: 1;
+  }
+  
+  .detail-text {
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
+    line-height: 1.7;
+    padding: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .detail-nav-arrow {
+    top: 1.5rem;
+    right: 1.5rem;
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-container {
+    padding: 1rem 1rem 2rem 1rem;
+    padding-top: 9.5rem !important; /* Safe clearance for button on very small screens */
+  }
+  
+  .detail-image-wrapper {
+    margin: 1.5rem 0 0 0;
+  }
+  
+  .detail-image {
+    max-height: 50vh; /* Even smaller on very small screens */
+  }
+  
+  .detail-content {
+    margin-top: 0 !important; /* Ensure no overlap */
+    padding-left: 0 !important;
+  }
+  
+  .detail-text {
+    font-size: clamp(0.9rem, 4.5vw, 1.1rem);
+    line-height: 1.6;
+  }
+  
+  .detail-nav-arrow {
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.75rem;
+  }
+}
+

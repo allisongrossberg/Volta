@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import AnimationPage from './pages/AnimationPage'
+import AnimationPageDirect from './pages/AnimationPageDirect'
 
 function App() {
   return (
@@ -11,7 +11,7 @@ function App() {
       }}
     >
       <Routes>
-        <Route path="/" element={<AnimationPage />} />
+        <Route path="/" element={<AnimationPageDirect />} />
       </Routes>
     </Router>
   )

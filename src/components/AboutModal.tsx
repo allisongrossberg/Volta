@@ -55,9 +55,17 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
           </p>
           <p>
             The name also honors Alessandro Volta, whose pioneering work with electricity created its own kind 
-            of transformation—converting chemical energy into electrical current. Similarly, Volta converts the 
+            of transformation: converting chemical energy into electrical current. Similarly, Volta converts the 
             energy of scientific inquiry into the current of literary expression, revealing that these seemingly 
             disparate modes of understanding might not be so separate after all.
+          </p>
+          <p>
+            <strong>How it works:</strong> Volta uses AI models to generate both the literary text and accompanying 
+            images. The text generation employs language models to transform your hypothesis into various literary 
+            forms, while image generation creates visual interpretations of the generated text. Please note that 
+            AI-generated content may contain inaccuracies, biases, or unexpected interpretations. The results are 
+            creative interpretations rather than factual translations, and should be understood as artistic 
+            explorations of scientific concepts rather than authoritative representations.
           </p>
         </div>
       </div>

@@ -1,0 +1,53 @@
+.circular-landing-page {
+  width: 100vw;
+  height: 100vh;
+  background: #1D1616;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.circular-landing-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  max-width: 800px;
+  max-height: 800px;
+  will-change: transform;
+}
+
+.circular-text-group {
+  will-change: transform;
+}
+
+.circular-enter-button {
+  position: relative;
+  z-index: 10;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: #D4A574;
+  border: none;
+  color: #1D1616;
+  font-family: 'GFS Didot', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.circular-enter-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.4);
+  background: #E5B885;
+}
+
+.circular-enter-button:active {
+  transform: scale(0.98);
+}
+

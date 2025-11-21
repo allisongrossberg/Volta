@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
 
 /* Modal Overlay */
 .about-modal-overlay {
@@ -9,9 +9,9 @@
   bottom: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background-color: rgba(14, 5, 2, 0.85); /* Match app background #0e0502 with opacity */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 999999; /* Maximum z-index to cover everything */
   display: flex;
   align-items: center;
@@ -35,16 +35,34 @@
 
 /* Modal Content */
 .about-modal-content {
-  background-color: #ffffff;
+  background-color: #0e0502; /* Match app background */
   max-width: 560px;
   width: 100%;
   padding: 3.5rem 3rem 3rem 3rem;
   position: relative;
-  border: none;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border to match app style */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
   animation: modalEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   max-height: 80vh;
   overflow-y: auto;
+}
+
+/* Custom scrollbar to match app style */
+.about-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.about-modal-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.about-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.about-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 @keyframes modalEnter {
@@ -69,8 +87,8 @@
   background: transparent;
   cursor: pointer;
   font-size: 1.75rem;
-  color: #000000;
-  font-family: 'Inter', sans-serif;
+  color: rgba(255, 255, 255, 0.9); /* Match app text color */
+  font-family: 'Josefin Sans', sans-serif; /* Match app font */
   line-height: 1;
   padding: 0;
   display: flex;
@@ -81,8 +99,10 @@
 }
 
 .about-modal-close:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.1);
   transform: rotate(90deg);
+  opacity: 0.7;
+  color: #FFFFFF;
 }
 
 .about-modal-close:active {
@@ -91,21 +111,23 @@
 
 /* Modal Title */
 .about-modal-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #000000;
+  font-family: 'GFS Didot', 'Cormorant Garamond', 'Bodoni Moda', 'Didot', 'Baskerville', 'Times New Roman', serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 400;
+  letter-spacing: 0.12em; /* Match app title letter spacing */
+  text-transform: uppercase;
+  color: #FFFFFF; /* Match app text color */
   margin: 0 0 1.75rem 0;
   padding-right: 3rem; /* Space for close button */
+  opacity: 0.98;
 }
 
 /* Modal Text */
 .about-modal-text {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Josefin Sans', sans-serif;
   font-size: 1rem;
-  line-height: 1.7;
-  color: #000000;
+  line-height: 1.8; /* Match app line height */
+  color: rgba(255, 255, 255, 0.9); /* Match app text color */
   margin: 0;
 }
 
@@ -113,13 +135,15 @@
   margin: 0;
   margin-bottom: 1.5rem;
   font-weight: 400;
+  letter-spacing: 0.01em; /* Match app letter spacing */
 }
 
 .about-modal-text p:first-child {
   font-size: 1.0625rem;
-  line-height: 1.65;
-  font-weight: 500;
+  line-height: 1.8;
+  font-weight: 400; /* Lighter weight to match app */
   margin-bottom: 1.75rem;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .about-modal-text p:last-child {
@@ -127,8 +151,8 @@
 }
 
 .about-modal-text strong {
-  font-weight: 600;
-  color: #000000;
+  font-weight: 500; /* Lighter weight to match app */
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* Responsive */
@@ -140,23 +164,101 @@
   .about-modal-content {
     padding: 2.5rem 1.5rem 2rem 1.5rem;
     max-height: 90vh;
+    max-width: 90vw;
   }
 
   .about-modal-close {
     top: 1rem;
     right: 1rem;
+    width: 32px;
+    height: 32px;
+    font-size: 1.5rem;
   }
 
   .about-modal-title {
     font-size: 1.25rem;
     margin-bottom: 1.5rem;
+    padding-right: 2.5rem;
   }
 
   .about-modal-text {
     font-size: 0.9375rem;
+    line-height: 1.6;
   }
 
   .about-modal-text p:first-child {
     font-size: 1rem;
+    line-height: 1.6;
+  }
+}
+
+@media (max-width: 480px) {
+  .about-modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .about-modal-content {
+    padding: 2rem 1.25rem 1.5rem 1.25rem;
+    max-height: 95vh;
+    max-width: 95vw;
+  }
+
+  .about-modal-close {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 28px;
+    height: 28px;
+    font-size: 1.25rem;
+  }
+
+  .about-modal-title {
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+    padding-right: 2rem;
+    letter-spacing: 0.03em;
+  }
+
+  .about-modal-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .about-modal-text p {
+    margin-bottom: 1.25rem;
+  }
+
+  .about-modal-text p:first-child {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .about-modal-content {
+    max-width: 600px;
+    padding: 3rem 2.5rem 2.5rem 2.5rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .about-modal-content {
+    max-width: 640px;
+    padding: 4rem 3.5rem 3rem 3.5rem;
+  }
+
+  .about-modal-title {
+    font-size: 1.625rem;
+    margin-bottom: 2rem;
+  }
+
+  .about-modal-text {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+
+  .about-modal-text p:first-child {
+    font-size: 1.125rem;
+    line-height: 1.7;
   }
 }

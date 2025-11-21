@@ -17,23 +17,23 @@ if (import.meta.env.DEV) {
 
 // Literary form options
 export const LITERARY_FORMS = [
-  { value: 'short_poem', label: 'Short Poem', style: 'In the style of Robert Frost or Emily Dickinson' },
+  { value: 'short_poem', label: 'Poem or Prose', style: 'In the style of Robert Frost or Emily Dickinson' },
   { value: 'sonnet', label: 'Soliloquy or Sonnet', style: 'In the style of Shakespeare' },
-  { value: 'epic', label: 'Short Epic', style: 'In the style of Homer' },
-  { value: 'pop_song', label: 'Song', style: 'In the style of Taylor Swift' },
-  { value: 'fairytale', label: 'Fairytale, Fable or Myth', style: 'In the style of old Scottish/Irish/Norse/Greek tales' },
-  { value: 'proverb', label: 'Proverb', style: 'In the style of Buddhist or African proverbs' },
+  { value: 'epic', label: 'Epic or Myth', style: 'In the style of Homer' },
+  { value: 'pop_song', label: 'Verse or Lyric', style: 'In the style of Taylor Swift' },
+  { value: 'fairytale', label: 'Fairytale or Fable', style: 'In the style of old Scottish/Irish/Norse/Greek tales' },
+  { value: 'proverb', label: 'Proverb or Witticism', style: 'In the style of Buddhist or African proverbs' },
 ] as const;
 
 export type LiteraryForm = typeof LITERARY_FORMS[number]['value'];
 
 const LITERARY_FORM_DESCRIPTIONS: Record<string, string> = {
-  short_poem: 'a short poem in the style of Robert Frost or Emily Dickinson',
+  short_poem: 'a poem or prose piece in the style of Robert Frost or Emily Dickinson',
   sonnet: 'a soliloquy or sonnet in the style of Shakespeare',
-  epic: 'a short epic in the style of Homer',
-  pop_song: 'a catchy pop song in the style of Taylor Swift',
-  fairytale: 'a short fairytale, fable or myth in the style of old Scottish/Irish/Norse/Greek tales',
-  proverb: 'a proverb in the style of Buddhist or African proverbs',
+  epic: 'an epic or myth in the style of Homer',
+  pop_song: 'a verse or lyric in the style of Taylor Swift',
+  fairytale: 'a short fairytale or fable in the style of old Scottish/Irish/Norse/Greek tales',
+  proverb: 'a proverb or witticism in the style of Buddhist or African proverbs',
 };
 
 /**
@@ -54,35 +54,44 @@ export async function generateText(
   const formConfig = LITERARY_FORMS.find(f => f.value === literaryForm);
 
   // Style examples for each literary form to guide the model
+  // Each form has unique characteristics to ensure diversity
   const styleExamples: Record<LiteraryForm, string> = {
     short_poem: `Examples of the style we admire:
 - Robert Frost: "Two roads diverged in a yellow wood, / And sorry I could not travel both / And be one traveler, long I stood / And looked down one as far as I could"
 - Emily Dickinson: "Because I could not stop for Death – / He kindly stopped for me – / The Carriage held but just Ourselves – / And Immortality"
-Write with their clarity, natural imagery, and contemplative tone.`,
+Write with their clarity, natural imagery, and contemplative tone. 
+UNIQUE CHARACTERISTICS: Short lines, natural metaphors, quiet reflection, simple language with deep meaning. Focus on nature, everyday moments, and inner thoughts.`,
     sonnet: `Examples of the style we admire:
 - Shakespeare: "Shall I compare thee to a summer's day? / Thou art more lovely and more temperate: / Rough winds do shake the darling buds of May, / And summer's lease hath all too short a date"
 - Shakespeare's soliloquies: "To be, or not to be, that is the question: / Whether 'tis nobler in the mind to suffer / The slings and arrows of outrageous fortune"
-Write with their eloquence, rhythm, and profound expression.`,
+Write with their eloquence, rhythm, and profound expression.
+UNIQUE CHARACTERISTICS: Formal structure, iambic rhythm, elevated language, dramatic questions, philosophical depth. Use "thou", "thee", "doth", "hath" for authenticity. Focus on grand themes and human nature.`,
     epic: `Examples of the style we admire:
 - Homer's Iliad: "Sing, O goddess, the anger of Peleus' son Achilles, that brought countless ills upon the Achaeans"
 - Homer's Odyssey: "Tell me, O muse, of that ingenious hero who travelled far and wide after he had sacked the famous town of Troy"
-Write with their grandeur, narrative power, and epic scope.`,
-    pop_song: `Examples of diverse song styles we admire:
+Write with their grandeur, narrative power, and epic scope.
+UNIQUE CHARACTERISTICS: Invoke the muse, use epithets ("wine-dark sea", "rosy-fingered dawn"), describe heroic actions, use epic similes, grand scale. Write in elevated, formal tone with mythological references.`,
+    pop_song: `Examples of diverse verse and lyric styles we admire:
 - Pop: Taylor Swift's emotional storytelling, Billie Eilish's introspective lyrics, Elton John's theatrical grandeur
 - Jazz/Soul: Aretha Franklin's powerful expression, Stevie Wonder's poetic depth
 - Rock: The Beatles' innovative wordplay, Queen's dramatic flair, Prince's sensuality, Stevie Nicks' mystical imagery
 - Folk: Bob Dylan's narrative storytelling and social commentary
 - Coffeehouse/Contemporary: John Mayer's introspective lyrics, Hozier's literary references
 - Timeless Icons: Elvis Presley's emotion, Billy Joel's storytelling, Whitney Houston's passion, Celine Dion's drama, Garth Brooks' relatability
-Write with authentic lyrical style, memorable hooks, emotional resonance, and the spirit of these diverse musical traditions. Include verse and chorus structure.`,
+- Verse and Lyrics: Poetic verses and memorable lyrics that capture emotion and tell stories
+Write with authentic lyrical style, memorable hooks, emotional resonance, and the spirit of these diverse musical traditions. Include verse and chorus structure.
+UNIQUE CHARACTERISTICS: Modern language, conversational tone, emotional directness, repetition for hooks, verse/chorus structure, personal pronouns ("I", "you", "we"). Focus on feelings, relationships, and contemporary experiences.`,
     fairytale: `Examples of the style we admire:
 - Old Scottish/Irish/Norse/Greek tales: "Once upon a time, in a land far away..." 
-- The Brothers Grimm, Hans Christian Andersen, ancient myths with their timeless quality
-Write with their timeless quality, moral depth, and enchanting narrative style.`,
+- The Brothers Grimm, Hans Christian Andersen, Aesop's fables with their timeless quality
+Write with their timeless quality, moral depth, and enchanting narrative style.
+UNIQUE CHARACTERISTICS: Begin with "Once upon a time" or similar, use simple narrative structure, include magical or mythical elements, end with a moral lesson. Use third-person storytelling, describe settings vividly, include characters (but abstractly for image generation). Focus on transformation, journeys, and wisdom.`,
     proverb: `Examples of the style we admire:
 - Buddhist proverbs: "The mind is everything. What you think you become."
 - African proverbs: "If you want to go fast, go alone. If you want to go far, go together."
-Write with their wisdom, brevity, and universal truth. IMPORTANT: Keep it SHORT - maximum 3 sentences.`,
+- Witticisms: Clever, witty sayings that reveal truth through humor and insight
+Write with their wisdom, brevity, and universal truth. IMPORTANT: Keep it SHORT - maximum 3 sentences.
+UNIQUE CHARACTERISTICS: Extremely concise (1-3 sentences), universal wisdom, memorable phrasing, often uses metaphor or analogy. No narrative, no characters, just pure wisdom. Can be poetic but must be brief and profound.`,
   };
 
   // Create enhanced prompt with style examples
@@ -96,16 +105,18 @@ Hypothesis: ${hypothesis}
 Requirements:
 - Capture the CORE CONCEPT and MEANING, not the literal words
 - Use metaphor, symbolism, and poetic imagery to express the scientific idea
-- Use the specified literary style authentically (refer to the examples above)
+- Use the specified literary style authentically (refer to the examples and UNIQUE CHARACTERISTICS above)
 - Be creative and evocative - transform the concept into art, not a direct translation
 - Keep it concise: maximum 200 words or 20 lines (PROVERBS: maximum 3 sentences)
 - Make it beautiful, poetic, and memorable
 - Avoid simply restating the hypothesis - interpret it through the lens of the literary form
 - CRITICAL: Provide ONLY ONE literary work - do NOT give multiple options or alternatives
 - CRITICAL: Do NOT use "Or" to separate different versions - give me your BEST single version
+- CRITICAL: Do NOT include a title - start directly with the literary work itself
+- CRITICAL: Make this work DISTINCTLY DIFFERENT from other literary forms - emphasize the unique characteristics listed above
 - No additional commentary, explanation, or alternatives - only the ONE literary work itself
 
-Begin your ${formDescription} now (remember: ONLY ONE version, no alternatives):`;
+Begin directly with your ${formDescription} (remember: NO title, ONLY ONE version, no alternatives, and make it distinctly unique to this form):`;
 
   // Try multiple chat models in order of preference
   // Mix of different model families for variety
@@ -115,8 +126,6 @@ Begin your ${formDescription} now (remember: ONLY ONE version, no alternatives):
     'microsoft/Phi-3.5-mini-instruct', // Microsoft's efficient model
     'meta-llama/Llama-3.2-3B-Instruct', // Llama fallback - proven to work
     'meta-llama/Llama-3.1-8B-Instruct', // Larger Llama model
-    'Qwen/Qwen2.5-Coder-32B-Instruct', // Qwen model
-    // Note: mistralai/Mistral-7B-Instruct-v0.3 not supported by router (not a chat model)
   ];
   
   for (const modelName of models) {
@@ -195,19 +204,40 @@ Begin your ${formDescription} now (remember: ONLY ONE version, no alternatives):
       // Also remove trailing "Or" at the end if present
       generatedText = generatedText.replace(/\s+[Oo]r\s*$/g, '').trim();
       
-      // Enforce length limit (approximately 200 words or 20 lines)
+      // Remove any title that might have been generated (first line if it looks like a title)
+      let finalText = generatedText;
       const lines = generatedText.split('\n');
-      if (lines.length > 20) {
-        generatedText = lines.slice(0, 20).join('\n');
+      
+      // Check if first line looks like a title (short, possibly in quotes, followed by blank line)
+      if (lines.length > 1) {
+        const firstLine = lines[0].trim();
+        const secondLine = lines[1].trim();
+        
+        // If first line is short and second line is blank or very short, remove first line
+        if (firstLine.length > 0 && firstLine.length < 100 && 
+            (secondLine === '' || secondLine.length < 10)) {
+          // Remove title and blank line(s)
+          finalText = lines.slice(2).join('\n').trim();
+        } else if (firstLine.length < 50 && !firstLine.includes('.') && 
+                   !firstLine.includes(',') && !firstLine.match(/^[A-Z]/)) {
+          // Very short line without punctuation that doesn't start with capital might be title
+          finalText = lines.slice(1).join('\n').trim();
+        }
       }
-      const words = generatedText.split(/\s+/);
+      
+      // Enforce length limit on text (approximately 200 words or 20 lines)
+      const textLines = finalText.split('\n');
+      if (textLines.length > 20) {
+        finalText = textLines.slice(0, 20).join('\n');
+      }
+      const words = finalText.split(/\s+/);
       if (words.length > 200) {
-        generatedText = words.slice(0, 200).join(' ');
+        finalText = words.slice(0, 200).join(' ');
       }
       
       console.log(`✅ Success with text model: ${modelName}`);
       return {
-        text: generatedText,
+        text: finalText,
         form: formConfig?.label.toUpperCase() || 'LITERARY WORK',
       };
     } catch (error) {
@@ -319,7 +349,7 @@ One day, a wise crow perched between them and cawed: "See how the sun's blessing
 And so it has been since the world was young—the sun lifts up those who seek her face.`,
     proverb: `"The plant that follows the sun's path grows tall enough to shade its children; the one that hides from light remains forever a child itself."`,
   };
-
+  
   return {
     text: mockTexts[literaryForm] || mockTexts.short_poem,
     form: formConfig?.label.toUpperCase() || 'LITERARY WORK',
