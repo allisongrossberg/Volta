@@ -20,6 +20,8 @@ interface DraggableGalleryProps {
   onBack?: () => void
   generatedContent?: Map<LiteraryForm, GeneratedContent>
   hypothesis?: string
+  onCursorChange?: (type: 'default' | 'plus' | 'minus') => void
+  onExpandedChange?: (isExpanded: boolean) => void
 }
 
 interface GalleryItem {
@@ -28,11 +30,10 @@ interface GalleryItem {
   imageUrl: string
 }
 
-function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
+function DraggableGallery({ onBack, generatedContent, onCursorChange, onExpandedChange }: DraggableGalleryProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
-  const projectTitleRef = useRef<HTMLDivElement>(null)
   
   const [isDragging, setIsDragging] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -63,6 +64,7 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
   const visibleItemsRef = useRef<Set<string>>(new Set())
   const lastXRef = useRef(0)
   const lastUpdateTimeRef = useRef(0)
+  const isClosingRef = useRef(false)
 
   // Settings
   const settings = {
@@ -239,6 +241,7 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         // Create image container
         const imageContainer = document.createElement('div')
         imageContainer.className = 'item-image-container'
+        imageContainer.style.cursor = 'none'
 
         // Create image with retry logic
         const img = document.createElement('img')
@@ -306,6 +309,19 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         imageContainer.appendChild(img)
         item.appendChild(imageContainer)
 
+        // Add hover handlers for cursor
+        item.addEventListener('mouseenter', () => {
+          if (onCursorChange && !isExpanded) {
+            onCursorChange('plus')
+          }
+        })
+        
+        item.addEventListener('mouseleave', () => {
+          if (onCursorChange && !isExpanded) {
+            onCursorChange('default')
+          }
+        })
+
         // Add click handler
         item.addEventListener('click', () => {
           if (mouseHasMoved || isDragging) return
@@ -344,8 +360,16 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
     setIsExpanded(true)
     setActiveItemId(item.id)
     canDragRef.current = false
+    
+    // Update cursor to minus when expanded
+    if (onCursorChange) {
+      onCursorChange('minus')
+    }
+    if (onExpandedChange) {
+      onExpandedChange(true)
+    }
     if (containerRef.current) {
-      containerRef.current.style.cursor = 'auto'
+      containerRef.current.style.cursor = 'none'
     }
 
     // Get image source from gallery item directly to ensure we use generated image
@@ -355,17 +379,6 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
     const itemHeight = parseInt(item.dataset.height || '330')
     const label = galleryItem.label
 
-    // Set and animate project title with SplitType
-    if (projectTitleRef.current) {
-      const titleElement = projectTitleRef.current
-      titleElement.textContent = label
-      
-      // Use SplitType to split into words for animation
-      const titleSplit = new SplitType(titleElement, { types: 'words' })
-      
-      // Set initial state - will animate in after delay
-      gsap.set(titleSplit.words, { y: '100%', opacity: 0 })
-    }
 
     // Get caption elements and animate them out with SplitType
     const captionElement = item.querySelector('.item-caption') as HTMLElement
@@ -398,21 +411,21 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         captionElement.style.opacity = '0'
         captionElement.style.visibility = 'hidden'
         
-        // Animate clone out
+        // Animate clone out - fast and smooth
         gsap.to(nameCloneSplit.words, {
           y: '100%',
           opacity: 0,
-          duration: 0.6,
-          stagger: 0.03,
+          duration: 0.3, // Faster disappearance
+          stagger: 0.02, // Faster stagger
           ease: 'power3.in',
         })
         
         gsap.to(numberCloneSplit.words, {
           y: '100%',
           opacity: 0,
-          duration: 0.6,
-          stagger: 0.02,
-          delay: 0.05,
+          duration: 0.3, // Faster disappearance
+          stagger: 0.015, // Faster stagger
+          delay: 0.03, // Shorter delay
           ease: 'power3.in',
           onComplete: () => {
             if (captionClone.parentNode) {
@@ -499,6 +512,7 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       console.log(`📝 Adding text overlay for ${galleryItem.label}:`, generated.text.substring(0, 50))
       const textOverlay = document.createElement('div')
       textOverlay.className = 'expanded-text-overlay'
+      textOverlay.style.cursor = 'none'
       
       // Create inner container for better text layout
       const textContainer = document.createElement('div')
@@ -523,17 +537,29 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         
       // Update scroll indicators on scroll
       textOverlay.addEventListener('scroll', updateScrollIndicators)
+      
+      // Add click handler to text overlay to close the image
+      // Clicking anywhere on the text overlay (which covers the entire expanded item) closes it
+      // Use the overlay's click handler as a reliable way to close
+      textOverlay.addEventListener('click', (e) => {
+        console.log('🔵 Text overlay clicked!')
+        e.stopPropagation() // Prevent event from bubbling
+        // Trigger the overlay click which we know works
+        if (overlayRef.current) {
+          overlayRef.current.click()
+        }
+      })
         
       // Check after content loads
       setTimeout(() => {
         updateScrollIndicators()
       }, 100)
         
-      // Animate text overlay in after image expansion
+      // Animate text overlay in after image expansion - smooth and quick
       gsap.to(textOverlay, {
         opacity: 1,
-        duration: 0.6,
-        delay: settings.zoomDuration * 0.7,
+        duration: 0.4, // Faster appearance
+        delay: settings.zoomDuration * 0.5, // Start appearing earlier
         ease: 'power2.out',
         onComplete: () => {
           console.log(`✅ Text overlay animation complete`)
@@ -545,7 +571,35 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       console.log(`Available forms in generatedContent:`, generatedContent ? Array.from(generatedContent.keys()) : 'none')
     }
 
-    expandedItem.addEventListener('click', closeExpandedItem)
+    // Add click handler to expanded item - this will work when clicking on image area
+    // The text overlay covers the entire item, so we need to handle clicks there too
+    // But this handler serves as a fallback
+    expandedItem.addEventListener('click', (e) => {
+      // If click is directly on the expanded item or image (not on text overlay)
+      // Close immediately
+      const target = e.target as HTMLElement
+      if (target === expandedItem || target === expandedItem.querySelector('img')) {
+        closeExpandedItem()
+      }
+      // Note: Clicks on text overlay are handled by the text overlay's click handler
+    })
+    
+    // Add hover handlers to expanded item and overlay to keep minus cursor
+    expandedItem.addEventListener('mouseenter', () => {
+      if (onCursorChange) {
+        onCursorChange('minus')
+      }
+    })
+    
+    // Also set cursor on overlay when hovering
+    if (overlayRef.current) {
+      overlayRef.current.addEventListener('mouseenter', () => {
+        if (onCursorChange) {
+          onCursorChange('minus')
+        }
+      })
+    }
+    
     document.body.appendChild(expandedItem)
     expandedItemRef.current = expandedItem
 
@@ -570,27 +624,6 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
     const initialX = rect.left + itemWidth / 2 - window.innerWidth / 2
     const initialY = rect.top + itemHeight / 2 - window.innerHeight / 2
 
-    // Animate title in after delay (matching example)
-    if (projectTitleRef.current) {
-      const titleElement = projectTitleRef.current
-      const titleSplit = new SplitType(titleElement, { types: 'words' })
-      gsap.delayedCall(0.5, () => {
-        gsap.fromTo(
-          titleSplit.words,
-          {
-            y: '100%',
-            opacity: 0,
-          },
-          {
-            y: '0%',
-            opacity: 1,
-            duration: 1,
-            stagger: 0.1,
-            ease: 'power3.out',
-          }
-        )
-      })
-    }
 
     gsap.fromTo(
       expandedItem,
@@ -613,21 +646,20 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
 
   // Close expanded item
   const closeExpandedItem = () => {
-    if (!expandedItemRef.current || !originalPositionRef.current) return
+    // Prevent multiple simultaneous close calls
+    if (isClosingRef.current || !expandedItemRef.current || !originalPositionRef.current) return
+    isClosingRef.current = true
 
-    // Hide title with SplitType animation
-    if (projectTitleRef.current) {
-      const titleElement = projectTitleRef.current
-      const titleSplit = new SplitType(titleElement, { types: 'words' })
-      
-      gsap.to(titleSplit.words, {
-        y: '-100%',
+    // Hide text overlay smoothly and quickly
+    const textOverlay = expandedItemRef.current.querySelector('.expanded-text-overlay') as HTMLElement
+    if (textOverlay) {
+      gsap.to(textOverlay, {
         opacity: 0,
-        duration: 1,
-        stagger: 0.1,
-        ease: 'power3.out',
+        duration: 0.3, // Quick fade out
+        ease: 'power2.in',
       })
     }
+
 
     // Hide overlay
     if (overlayRef.current) {
@@ -674,6 +706,75 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       captionElement.style.visibility = 'hidden' // Also hide with visibility to prevent flicker
     }
 
+    // Start caption animation earlier (during shrink, not after)
+    // This makes the text appear faster
+    let captionClone: HTMLElement | null = null
+    if (originalItem) {
+      const captionElement = originalItem.querySelector('.item-caption') as HTMLElement
+      const nameElement = originalItem.querySelector('.item-name') as HTMLElement
+      const numberElement = originalItem.querySelector('.item-number') as HTMLElement
+      
+      if (captionElement && nameElement && numberElement && originalPositionRef.current) {
+        // Reset the text content to ensure clean animation (matching example)
+        const nameText = originalPositionRef.current.nameText || originalPositionRef.current.label || nameElement.textContent || ''
+        const numberText = originalPositionRef.current.numberText || numberElement.textContent || ''
+        nameElement.textContent = nameText
+        numberElement.textContent = numberText
+
+        // Create clone for animation - use cloneNode like example
+        captionClone = captionElement.cloneNode(true) as HTMLElement
+        captionClone.classList.add('caption-clone')
+        const nameClone = captionClone.querySelector('.item-name') as HTMLElement
+        const numberClone = captionClone.querySelector('.item-number') as HTMLElement
+        
+        if (nameClone && numberClone) {
+          // Position clone exactly over original
+          const captionRect = captionElement.getBoundingClientRect()
+          captionClone.style.position = 'fixed'
+          captionClone.style.left = `${captionRect.left}px`
+          captionClone.style.bottom = `${window.innerHeight - captionRect.bottom}px`
+          captionClone.style.width = `${captionRect.width}px`
+          captionClone.style.zIndex = '10002' // Explicitly set z-index
+          document.body.appendChild(captionClone)
+          
+          // Apply SplitType to the cloned elements - use words for both
+          const nameCloneSplit = new SplitType(nameClone, { types: 'words' })
+          const numberCloneSplit = new SplitType(numberClone, { types: 'words' })
+          
+          // Set initial state
+          gsap.set(nameCloneSplit.words, { y: '100%', opacity: 0 })
+          gsap.set(numberCloneSplit.words, { y: '100%', opacity: 0 })
+          
+          // Animate in - faster and starts earlier
+          gsap.to(nameCloneSplit.words, {
+            y: '0%',
+            opacity: 1,
+            duration: 0.4, // Faster animation
+            stagger: 0.02, // Faster stagger
+            ease: 'power3.out',
+          })
+          
+          gsap.to(numberCloneSplit.words, {
+            y: '0%',
+            opacity: 1,
+            duration: 0.4, // Faster animation
+            stagger: 0.015, // Faster stagger
+            delay: 0.03, // Shorter delay
+            ease: 'power3.out',
+            onComplete: () => {
+              // Show the original caption
+              captionElement.style.opacity = '1'
+              captionElement.style.visibility = 'visible'
+              // Remove the clone
+              if (captionClone && captionClone.parentNode) {
+                document.body.removeChild(captionClone)
+              }
+            },
+          })
+        }
+      }
+    }
+
     // Animate back to original position with smooth easing
     gsap.to(expandedItemRef.current, {
       width: originalWidth,
@@ -683,72 +784,6 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       duration: settings.zoomDuration,
       ease: 'hop', // Use registered CustomEase "hop" easing curve
       onComplete: () => {
-        // Animate caption back in with SplitType
-        if (originalItem) {
-          const captionElement = originalItem.querySelector('.item-caption') as HTMLElement
-          const nameElement = originalItem.querySelector('.item-name') as HTMLElement
-          const numberElement = originalItem.querySelector('.item-number') as HTMLElement
-          
-          if (captionElement && nameElement && numberElement && originalPositionRef.current) {
-            // Reset the text content to ensure clean animation (matching example)
-            const nameText = originalPositionRef.current.nameText || originalPositionRef.current.label || nameElement.textContent || ''
-            const numberText = originalPositionRef.current.numberText || numberElement.textContent || ''
-            nameElement.textContent = nameText
-            numberElement.textContent = numberText
-
-            // Create clone for animation - use cloneNode like example
-            const captionClone = captionElement.cloneNode(true) as HTMLElement
-            captionClone.classList.add('caption-clone')
-            const nameClone = captionClone.querySelector('.item-name') as HTMLElement
-            const numberClone = captionClone.querySelector('.item-number') as HTMLElement
-            
-            if (nameClone && numberClone) {
-              // Position clone exactly over original
-              const captionRect = captionElement.getBoundingClientRect()
-              captionClone.style.position = 'fixed'
-              captionClone.style.left = `${captionRect.left}px`
-              captionClone.style.bottom = `${window.innerHeight - captionRect.bottom}px`
-              captionClone.style.width = `${captionRect.width}px`
-              captionClone.style.zIndex = '10002' // Explicitly set z-index
-              document.body.appendChild(captionClone)
-              
-              // Apply SplitType to the cloned elements - use words for both
-              const nameCloneSplit = new SplitType(nameClone, { types: 'words' })
-              const numberCloneSplit = new SplitType(numberClone, { types: 'words' })
-              
-              // Set initial state
-              gsap.set(nameCloneSplit.words, { y: '100%', opacity: 0 })
-              gsap.set(numberCloneSplit.words, { y: '100%', opacity: 0 })
-              
-              // Animate in
-              gsap.to(nameCloneSplit.words, {
-                y: '0%',
-                opacity: 1,
-                duration: 0.7,
-                stagger: 0.03,
-                ease: 'power3.out',
-              })
-              
-              gsap.to(numberCloneSplit.words, {
-                y: '0%',
-                opacity: 1,
-                duration: 0.7,
-                stagger: 0.02,
-                delay: 0.05,
-                ease: 'power3.out',
-                onComplete: () => {
-                  // Show the original caption
-                  captionElement.style.opacity = '1'
-                  captionElement.style.visibility = 'visible'
-                  // Remove the clone
-                  if (captionClone.parentNode) {
-                    document.body.removeChild(captionClone)
-                  }
-                },
-              })
-            }
-          }
-        }
 
         if (expandedItemRef.current && expandedItemRef.current.parentNode) {
           document.body.removeChild(expandedItemRef.current)
@@ -756,10 +791,19 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         expandedItemRef.current = null
         setIsExpanded(false)
         setActiveItemId(null)
+        
+        // Reset cursor to default when closed
+        if (onCursorChange) {
+          onCursorChange('default')
+        }
+        if (onExpandedChange) {
+          onExpandedChange(false)
+        }
+        
         // Re-enable dragging only after everything is cleaned up
         canDragRef.current = true
         if (containerRef.current) {
-          containerRef.current.style.cursor = 'grab'
+          containerRef.current.style.cursor = 'none'
         }
         // Reset drag velocity to prevent any momentum from affecting position
         dragVelocityXRef.current = 0
@@ -767,6 +811,9 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
         // Ensure target matches current to prevent any movement
         targetXRef.current = currentXRef.current
         targetYRef.current = currentYRef.current
+        
+        // Reset closing flag to allow future closes
+        isClosingRef.current = false
       },
     })
   }
@@ -834,7 +881,7 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       startXRef.current = e.clientX
       startYRef.current = e.clientY
       if (containerRef.current) {
-        containerRef.current.style.cursor = 'grabbing'
+        containerRef.current.style.cursor = 'none'
         containerRef.current.classList.add('dragging')
       }
     }
@@ -869,7 +916,7 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
 
       if (canDragRef.current) {
         if (containerRef.current) {
-          containerRef.current.style.cursor = 'grab'
+          containerRef.current.style.cursor = 'none'
           containerRef.current.classList.remove('dragging')
         }
 
@@ -1007,9 +1054,6 @@ function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
       <div ref={containerRef} className="draggable-gallery-container">
         <div ref={canvasRef} className="canvas" />
         <div ref={overlayRef} className="overlay" />
-        <div ref={projectTitleRef} className="project-title">
-          <p></p>
-        </div>
         <div className="drag-indicator">
           <div className="swipe-gesture">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

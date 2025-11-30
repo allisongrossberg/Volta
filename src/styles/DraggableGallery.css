@@ -42,6 +42,7 @@
   height: 100%;
   overflow: hidden;
   position: relative;
+  cursor: none;
 }
 
 .item-image-container::after {
@@ -62,6 +63,7 @@
   object-fit: cover;
   pointer-events: none;
   transition: transform 0.3s ease;
+  cursor: none;
 }
 
 .item:hover img {
@@ -112,49 +114,18 @@
   will-change: transform;
 }
 
-/* Project title needs to be above everything */
-.project-title {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  text-align: center;
-  pointer-events: none;
-  z-index: 10002;
-  /* Increased to be above expanded-item */
-}
-
-.project-title p {
-  position: relative;
-  height: 42px;
-  color: #ffffff;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
-  overflow: hidden;
-}
-
-.project-title p .word {
-  position: relative;
-  display: inline-block;
-  font-family: 'Josefin Sans', sans-serif;
-  font-size: 36px;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-  transform: translateY(0%);
-  will-change: transform;
-}
 
 /* Expanded item should be above overlay but below titles and captions */
 .expanded-item {
   position: fixed;
   z-index: 10000;
-  /* Lower than project-title and caption-clone */
+  /* Lower than caption-clone */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: #000000;
   overflow: hidden;
-  cursor: pointer;
+  cursor: none;
   border-radius: var(--border-radius, 0px);
 }
 
@@ -193,6 +164,7 @@
   scroll-behavior: smooth;
   box-sizing: border-box;
   pointer-events: auto;
+  cursor: none;
   /* Firefox scrollbar */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.05);
@@ -261,6 +233,7 @@
   pointer-events: none;
   opacity: 0;
   z-index: 9999;
+  cursor: none;
   /* Below expanded-item but above other content */
 }
 
@@ -272,7 +245,7 @@
 .caption-clone {
   position: fixed;
   z-index: 10002;
-  /* Same as project-title to be above expanded-item */
+  /* Above expanded-item */
 }
 
 /* Clone styles for animation */
@@ -324,10 +297,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .project-title p {
-    font-size: 24px;
-  }
-
   .expanded-text-overlay {
     font-size: 16px;
     padding: 2.5rem 1.5rem;

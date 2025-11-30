@@ -95,7 +95,7 @@
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.875rem;
   font-weight: 400;
-  cursor: pointer;
+  cursor: none;
   text-decoration: none;
   transition: all 0.3s ease;
 }
@@ -290,3 +290,5 @@
     right: clamp(1.5rem, 5vw, 3rem); /* Move further left on mobile */
   }
 }
+
+

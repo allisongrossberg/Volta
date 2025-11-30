@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import HomePage from '../components/HomePage'
 import DraggableGallery from '../components/DraggableGallery'
 import AboutModal from '../components/AboutModal'
+import CustomCursor from '../components/CustomCursor'
 import { LITERARY_FORMS, generateText, type LiteraryForm } from '../services/textGeneration'
 import { generateImage } from '../services/imageGeneration'
 import '../styles/HomePage.css'
 import '../styles/DraggableGallery.css'
 import '../styles/AnimationPageDirect.css'
+import '../styles/CustomCursor.css'
 
 type ScreenPhase = 'home' | 'loading' | 'gallery'
 
@@ -22,6 +24,7 @@ function AnimationPageDirect() {
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<Map<LiteraryForm, GeneratedContent>>(new Map())
   const [_loadingProgress, setLoadingProgress] = useState(0)
+  const [cursorType, setCursorType] = useState<'default' | 'plus' | 'minus'>('default')
   const aboutTriggerRef = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -286,6 +289,9 @@ function AnimationPageDirect() {
 
   return (
     <>
+      {/* Custom Cursor - shown on all pages */}
+      <CustomCursor type={cursorType} />
+      
       {/* About Modal - accessible from Read More button on home page */}
       <AboutModal 
         isOpen={isAboutOpen} 
@@ -436,6 +442,14 @@ function AnimationPageDirect() {
           onBack={handleGalleryBack}
           generatedContent={generatedContent}
           hypothesis={hypothesis}
+          onCursorChange={(type) => setCursorType(type)}
+          onExpandedChange={(isExpanded) => {
+            if (isExpanded) {
+              setCursorType('minus')
+            } else {
+              setCursorType('default')
+            }
+          }}
         />
       </div>
 
