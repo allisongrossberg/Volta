@@ -68,7 +68,7 @@ export default function CircularLandingPage({ onEnter }: CircularLandingPageProp
       },
     ]
 
-    circles.forEach((circle) => {
+    circles.forEach((circle, index) => {
       // Create group positioned at center - this will be rotated (like Codrops structure)
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       group.setAttribute('transform', `translate(${centerX}, ${centerY})`)

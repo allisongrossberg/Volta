@@ -1,17 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import HomePage from '../components/HomePage'
-import GooeyImageGallery from '../components/GooeyImageGallery'
-import DetailPage from '../components/DetailPage'
+import DraggableGallery from '../components/DraggableGallery'
 import AboutModal from '../components/AboutModal'
 import { LITERARY_FORMS, generateText, type LiteraryForm } from '../services/textGeneration'
 import { generateImage } from '../services/imageGeneration'
 import '../styles/HomePage.css'
-import '../styles/GalleryPage.css'
-import '../styles/DetailPage.css'
+import '../styles/DraggableGallery.css'
 import '../styles/AnimationPageDirect.css'
 
-type ScreenPhase = 'home' | 'loading' | 'gallery' | 'detail'
+type ScreenPhase = 'home' | 'loading' | 'gallery'
 
 interface GeneratedContent {
   text: string
@@ -22,11 +19,7 @@ interface GeneratedContent {
 function AnimationPageDirect() {
   const [screenPhase, setScreenPhase] = useState<ScreenPhase>('home')
   const [hypothesis, setHypothesis] = useState('')
-  const [selectedLiteraryForm, setSelectedLiteraryForm] = useState<LiteraryForm | null>(null)
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
-  const [_galleryBackgroundColor, setGalleryBackgroundColor] = useState('#1D1616')
-  const [detailBackgroundColor, setDetailBackgroundColor] = useState('#1D1616')
   const [generatedContent, setGeneratedContent] = useState<Map<LiteraryForm, GeneratedContent>>(new Map())
   const [_loadingProgress, setLoadingProgress] = useState(0)
   const aboutTriggerRef = useRef<HTMLSpanElement>(null)
@@ -106,21 +99,40 @@ function AnimationPageDirect() {
     }
   }, [screenPhase])
 
-  // Preload an image to ensure it's ready
-  const preloadImage = (url: string): Promise<void> => {
+  // Preload an image with retry logic and exponential backoff
+  const preloadImage = (url: string, maxRetries = 3): Promise<void> => {
     return new Promise((resolve) => {
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      img.onload = () => {
-        console.log(`✅ Image preloaded: ${url.substring(0, 50)}...`)
-        resolve()
+      let retryCount = 0
+      
+      const attemptLoad = (delay = 0): void => {
+        setTimeout(() => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          
+          img.onload = () => {
+            console.log(`✅ Image preloaded: ${url.substring(0, 50)}...`)
+            resolve()
+          }
+          
+          img.onerror = () => {
+            retryCount++
+            if (retryCount < maxRetries) {
+              // Exponential backoff: 1s, 2s, 4s
+              const backoffDelay = Math.pow(2, retryCount) * 1000
+              console.log(`⚠️ Failed to preload image (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms: ${url.substring(0, 50)}...`)
+              attemptLoad(backoffDelay)
+            } else {
+              console.warn(`⚠️ Failed to preload image after ${maxRetries} attempts: ${url.substring(0, 50)}...`)
+              // Still resolve to continue - image might load later in gallery
+              resolve()
+            }
+          }
+          
+          img.src = url
+        }, delay)
       }
-      img.onerror = () => {
-        console.warn(`⚠️ Failed to preload image: ${url.substring(0, 50)}...`)
-        // Still resolve to continue - image might load later
-        resolve()
-      }
-      img.src = url
+      
+      attemptLoad()
     })
   }
 
@@ -131,15 +143,41 @@ function AnimationPageDirect() {
     let completed = 0
     
     try {
-      // Generate text and images for all forms in parallel
-      const generationPromises = LITERARY_FORMS.map(async (formConfig) => {
+      // Generate all text in parallel (HuggingFace API can handle concurrent requests)
+      console.log('📝 Generating text for all forms in parallel...')
+      const textPromises = LITERARY_FORMS.map(async (formConfig) => {
         const form = formConfig.value as LiteraryForm
-        
         try {
-          // Generate text first
           console.log(`📝 Generating text for ${form}...`)
           const textResult = await generateText(hypothesisText, form)
-          
+          return { form, textResult }
+        } catch (error) {
+          console.error(`❌ Error generating text for ${form}:`, error)
+          return {
+            form,
+            textResult: {
+              text: `Error generating content for ${formConfig.label}`,
+              form: formConfig.label.toUpperCase()
+            }
+          }
+        }
+      })
+      
+      const textResults = await Promise.all(textPromises)
+      
+      // Generate images sequentially with short delays to respect Pollinations.AI rate limits
+      // Using 2-3 second delays instead of 20 seconds - retry logic will handle transient errors
+      for (let index = 0; index < textResults.length; index++) {
+        const { form, textResult } = textResults[index]
+        
+        // Add short delay between image generation requests (2 seconds)
+        // This prevents overwhelming the API while keeping it fast
+        // Retry logic will handle any transient 500/502 errors
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+        
+        try {
           // Generate image using the generated text
           console.log(`🎨 Generating image for ${form}...`)
           const imageUrl = await generateImage(textResult.text, undefined, undefined, form)
@@ -164,19 +202,17 @@ function AnimationPageDirect() {
           completed++
           setLoadingProgress(Math.round((completed / totalForms) * 50)) // 50% for generation
         } catch (error) {
-          console.error(`❌ Error generating content for ${form}:`, error)
+          console.error(`❌ Error generating image for ${form}:`, error)
           // Use placeholder on error
           newContent.set(form, {
-            text: `Error generating content for ${formConfig.label}`,
+            text: textResult.text,
             imageUrl: `https://picsum.photos/800/600?random=${form}`,
-            form: formConfig.label.toUpperCase()
+            form: textResult.form
           })
           completed++
           setLoadingProgress(Math.round((completed / totalForms) * 50))
         }
-      })
-      
-      await Promise.all(generationPromises)
+      }
       setGeneratedContent(newContent)
       console.log('✅ All content generated successfully')
       
@@ -237,81 +273,6 @@ function AnimationPageDirect() {
       setScreenPhase('gallery')
     }
     }, 500)
-  }
-
-  // Extract dominant color from image
-  const extractDominantColor = (imageUrl: string, callback: (color: string) => void) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        callback('#1D1616')
-        return
-      }
-      
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0)
-      
-      // Sample pixels and find dominant color
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
-      const colorCounts: { [key: string]: number } = {}
-      
-      // Sample every 10th pixel for performance
-      for (let i = 0; i < data.length; i += 40) {
-        const r = data[i]
-        const g = data[i + 1]
-        const b = data[i + 2]
-        // Quantize colors to reduce variations
-        const qr = Math.floor(r / 32) * 32
-        const qg = Math.floor(g / 32) * 32
-        const qb = Math.floor(b / 32) * 32
-        const key = `${qr},${qg},${qb}`
-        colorCounts[key] = (colorCounts[key] || 0) + 1
-      }
-      
-      // Find most common color
-      let maxCount = 0
-      let dominantColor = '1D1616'
-      for (const [color, count] of Object.entries(colorCounts)) {
-        if (count > maxCount) {
-          maxCount = count
-          const [r, g, b] = color.split(',').map(Number)
-          // Convert to hex
-          dominantColor = [r, g, b].map(x => {
-            const hex = x.toString(16)
-            return hex.length === 1 ? '0' + hex : hex
-          }).join('')
-        }
-      }
-      
-      const finalColor = `#${dominantColor}`
-      callback(finalColor)
-    }
-    img.onerror = () => {
-      callback('#1D1616')
-    }
-    img.src = imageUrl
-  }
-
-  // Handle form selection from gallery - go to detail page first
-  const handleFormSelect = (form: LiteraryForm, imageUrl: string) => {
-    setSelectedLiteraryForm(form)
-    setSelectedImageUrl(imageUrl)
-    
-    // Extract dominant color from the selected image
-    extractDominantColor(imageUrl, (color) => {
-      setDetailBackgroundColor(color)
-    })
-    
-    setScreenPhase('detail')
-  }
-
-  const handleDetailBack = () => {
-    setScreenPhase('gallery')
   }
 
   const handleGalleryBack = () => {
@@ -464,38 +425,21 @@ function AnimationPageDirect() {
           padding: 0,
           overflow: 'hidden', // Hide all overflow - gallery handles its own scrolling
           display: 'block', // Always in layout for transform to work
-          visibility: screenPhase === 'gallery' || screenPhase === 'detail' ? 'visible' : 'hidden',
-          opacity: screenPhase === 'gallery' || screenPhase === 'detail' ? 1 : 0,
-          pointerEvents: screenPhase === 'gallery' || screenPhase === 'detail' ? 'auto' : 'none',
+          visibility: screenPhase === 'gallery' ? 'visible' : 'hidden',
+          opacity: screenPhase === 'gallery' ? 1 : 0,
+          pointerEvents: screenPhase === 'gallery' ? 'auto' : 'none',
           transition: 'opacity 0.3s ease, visibility 0.3s ease',
           zIndex: 1 // Above background text (z-index 0)
         }}
       >
-        <GooeyImageGallery 
-          onSelectForm={handleFormSelect}
-          onBackgroundColorChange={setGalleryBackgroundColor}
-          isVisible={screenPhase === 'gallery'} // Only show progress bar on gallery screen
+        <DraggableGallery 
           onBack={handleGalleryBack}
           generatedContent={generatedContent}
+          hypothesis={hypothesis}
         />
       </div>
 
           </div>
-
-          {/* Detail Page */}
-          <AnimatePresence mode="wait">
-            {screenPhase === 'detail' && selectedLiteraryForm && selectedImageUrl && (
-              <DetailPage
-                selectedForm={selectedLiteraryForm}
-                selectedImageUrl={selectedImageUrl}
-                hypothesis={hypothesis}
-                onBack={handleDetailBack}
-                onContinue={() => {}} // No-op since we're not transitioning anymore
-                generatedText={generatedContent.get(selectedLiteraryForm)?.text}
-                backgroundColor={detailBackgroundColor}
-              />
-            )}
-          </AnimatePresence>
       </>
     </>
   )

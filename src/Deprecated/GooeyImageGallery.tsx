@@ -872,7 +872,7 @@ function GooeyImageGallery({ onSelectForm, onBackgroundColorChange, isVisible = 
             width: '300px',
             height: '2px',
             background: 'rgba(255, 255, 255, 0.2)',
-            zIndex: 10000,
+            zIndex: 9998, // Below modal but above gallery content
             borderRadius: '1px',
             pointerEvents: 'none',
             display: 'block',

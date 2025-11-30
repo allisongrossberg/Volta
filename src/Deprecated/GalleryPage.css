@@ -263,7 +263,7 @@
   width: 300px;
   height: 2px;
   background: rgba(255, 255, 255, 0.2);
-  z-index: 10000; /* High z-index to ensure it's above everything */
+  z-index: 9998; /* Below modal and expanded items, but above gallery content */
   border-radius: 1px;
   pointer-events: none; /* Don't interfere with scrolling */
   display: block;

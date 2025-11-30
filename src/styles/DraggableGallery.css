@@ -1,0 +1,437 @@
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=GFS+Didot&display=swap');
+
+:root {
+  --spacing-base: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --color-text: #ffffff;
+  --color-text-dim: 0.6;
+  --transition-medium: 0.3s ease;
+  --font-size-base: 14px;
+}
+
+.draggable-gallery-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  cursor: none;
+  background-color: #000000;
+  z-index: 1; /* Lower than cursor */
+}
+
+.draggable-gallery-container:active {
+  cursor: none;
+}
+
+.canvas {
+  position: absolute;
+  will-change: transform;
+}
+
+.item {
+  position: absolute;
+  overflow: hidden;
+  background-color: #000000;
+  cursor: pointer;
+  border-radius: var(--border-radius, 0px);
+}
+
+.item-image-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.item-image-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 var(--vignette-size, 0px) rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+
+.item:hover img {
+  transform: scale(var(--hover-scale, 1.05));
+}
+
+.item-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 14px 16px;
+  z-index: 2;
+}
+
+.item-name {
+  font-family: 'Josefin Sans', sans-serif;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  position: relative;
+  overflow: hidden;
+  height: 22px;
+}
+
+.item-name .word {
+  position: relative;
+  display: inline-block;
+  will-change: transform;
+}
+
+.item-number {
+  font-family: 'GFS Didot', serif;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 400;
+  position: relative;
+  overflow: hidden;
+  height: 22px;
+}
+
+.item-number .char {
+  position: relative;
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Project title needs to be above everything */
+.project-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  text-align: center;
+  pointer-events: none;
+  z-index: 10002;
+  /* Increased to be above expanded-item */
+}
+
+.project-title p {
+  position: relative;
+  height: 42px;
+  color: #ffffff;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+  overflow: hidden;
+}
+
+.project-title p .word {
+  position: relative;
+  display: inline-block;
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 36px;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  transform: translateY(0%);
+  will-change: transform;
+}
+
+/* Expanded item should be above overlay but below titles and captions */
+.expanded-item {
+  position: fixed;
+  z-index: 10000;
+  /* Lower than project-title and caption-clone */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #000000;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: var(--border-radius, 0px);
+}
+
+.expanded-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  position: relative;
+  z-index: 0;
+}
+
+/* Text overlay on expanded item */
+.expanded-text-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4rem 2.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 18px;
+  line-height: 1.8;
+  text-align: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 10;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  backdrop-filter: blur(2px);
+  scroll-behavior: smooth;
+  box-sizing: border-box;
+  pointer-events: auto;
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.05);
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.expanded-text-overlay::-webkit-scrollbar {
+  width: 3px;
+}
+
+.expanded-text-overlay::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+
+.expanded-text-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.expanded-text-overlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Scroll indicators - gradient fades at edges when scrollable */
+.expanded-text-overlay.scrollable-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.expanded-text-overlay.scrollable-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Ensure text content has proper max-width for readability */
+.expanded-text-overlay > div {
+  max-width: 90%;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 9999;
+  /* Below expanded-item but above other content */
+}
+
+.overlay.active {
+  pointer-events: auto;
+}
+
+/* Caption clone needs to be above expanded item */
+.caption-clone {
+  position: fixed;
+  z-index: 10002;
+  /* Same as project-title to be above expanded-item */
+}
+
+/* Clone styles for animation */
+.caption-clone .item-name,
+.caption-clone .item-number {
+  overflow: hidden;
+}
+
+/* Page vignette effect */
+.page-vignette-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.page-vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 var(--page-vignette-size, 0px)
+    var(--page-vignette-color, rgba(0, 0, 0, 0.9));
+}
+
+.page-vignette-strong {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 var(--page-vignette-strong-size, 0px)
+    var(--page-vignette-strong-color, rgba(0, 0, 0, 0.95));
+}
+
+.page-vignette-extreme {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 var(--page-vignette-extreme-size, 0px)
+    var(--page-vignette-extreme-color, rgba(0, 0, 0, 1));
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .project-title p {
+    font-size: 24px;
+  }
+
+  .expanded-text-overlay {
+    font-size: 16px;
+    padding: 2.5rem 1.5rem;
+    line-height: 1.6;
+  }
+
+  .expanded-text-overlay > div {
+    max-width: 95%;
+  }
+
+  .expanded-text-overlay.scrollable-top::before,
+  .expanded-text-overlay.scrollable-bottom::after {
+    height: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .expanded-text-overlay {
+    font-size: 14px;
+    padding: 2rem 1.25rem;
+    line-height: 1.5;
+  }
+}
+
+/* Drag indicator */
+.drag-indicator {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  z-index: 100;
+  animation: fadeInOut 4s ease-in-out;
+  transition: opacity 0.4s ease;
+}
+
+.swipe-gesture {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.drag-indicator svg {
+  width: 24px;
+  height: 24px;
+  opacity: 0.7;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+.draggable-gallery-container.dragging .drag-indicator,
+.draggable-gallery-container:hover .drag-indicator {
+  opacity: 0;
+}
+
+@keyframes fadeInOut {
+  0%, 100% {
+    opacity: 0;
+  }
+  20%, 80% {
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 768px) {
+  .drag-indicator {
+    bottom: 1.5rem;
+    font-size: 10px;
+    gap: 0.5rem;
+  }
+  
+  .swipe-gesture {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .drag-indicator svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+

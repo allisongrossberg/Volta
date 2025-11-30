@@ -6,24 +6,45 @@
   top: 0;
   left: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Changed from center to flex-start to ensure top is visible */
   justify-content: center;
-  z-index: 1;
-  overflow: hidden;
+  z-index: 10; /* Base page z-index */
+  overflow-y: auto; /* Allow vertical scrolling if content exceeds viewport */
+  overflow-x: hidden;
   box-sizing: border-box;
+  /* Custom scrollbar to match about modal style */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05); /* Firefox */
+}
+
+/* Custom scrollbar to match about modal style */
+.home-page::-webkit-scrollbar {
+  width: 8px;
+}
+
+.home-page::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.home-page::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.home-page::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .home-container {
   width: 100%;
   max-width: 100%;
-  padding: 3rem 6rem 2rem 6rem;
+  padding: clamp(2rem, 4vh, 3rem) 6rem clamp(4rem, 8vh, 6rem) 6rem; /* Dynamic top and bottom padding */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
   margin: 0 auto;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   box-sizing: border-box;
   position: relative;
 }
@@ -36,7 +57,7 @@
   color: #FFFFFF;
   text-align: center;
   letter-spacing: 0.12em;
-  margin: 0 auto 3rem auto;
+  margin: 0 auto clamp(2rem, 4vh, 2.5rem) auto; /* Reduced bottom margin to move content up */
   padding: 0;
   line-height: 0.85;
   opacity: 0.98;
@@ -55,16 +76,18 @@
   margin-top: 0;
   display: flex;
   justify-content: center;
-  flex: 1;
+  flex: 1 1 auto; /* Allow flex to grow and shrink */
   padding: 0;
+  min-height: 0; /* Allow flex shrinking */
 }
 
-/* Read About Me link at bottom right */
+/* Read About Me link - aligned with bottom of circular button */
 .home-about-link {
   position: absolute;
-  bottom: 2rem;
-  right: 2rem;
+  /* top is set dynamically via JavaScript to align with button bottom */
+  right: clamp(3rem, 8vw, 5rem); /* Move further left - responsive based on viewport */
   left: auto;
+  transform: translateY(0); /* No vertical centering, align to bottom */
 }
 
 .read-about-link {
@@ -95,18 +118,20 @@
 .home-form {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: clamp(1.5rem, 3vh, 2.5rem); /* Reduced gap to prevent overflow */
   width: 100%;
   max-width: clamp(30rem, 70vw, 45rem);
   align-items: center;
   margin: 0 auto;
+  padding-bottom: clamp(2rem, 5vh, 3.5rem); /* Reduced bottom padding */
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: clamp(0.75rem, 1.5vh, 1.25rem); /* Reduced gap */
   width: 100%;
+  margin-bottom: clamp(0.75rem, 2vh, 1.5rem); /* Reduced bottom margin */
 }
 
 .home-instructions {
@@ -115,7 +140,7 @@
   font-weight: 300;
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.6;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 clamp(1rem, 2vh, 1.25rem) 0; /* Reduced bottom margin to move content up */
   text-align: center;
   max-width: 100%;
   text-transform: uppercase;
@@ -221,13 +246,23 @@
   }
   
   .home-container {
-    padding: 3rem 4rem;
+    padding: 3rem 4rem clamp(3rem, 6vh, 5rem) 4rem; /* Maintain dynamic bottom padding */
+  }
+  
+  .home-form {
+    padding-bottom: clamp(1.5rem, 5vh, 3rem); /* Adjust form padding for medium screens */
+  }
+  
+  .home-about-link {
+    /* top is set dynamically via JavaScript */
+    transform: translateY(0);
+    right: clamp(2rem, 6vw, 4rem); /* Move further left on medium screens */
   }
 }
 
 @media (max-width: 768px) {
   .home-container {
-    padding: 2rem;
+    padding: 2rem clamp(1.5rem, 4vw, 2rem) clamp(2.5rem, 5vh, 4rem) clamp(1.5rem, 4vw, 2rem); /* Dynamic padding on mobile */
   }
   
   .home-title {
@@ -237,5 +272,21 @@
   
   .home-content {
     gap: 3rem;
+  }
+  
+  .home-form {
+    gap: clamp(1.5rem, 3vh, 2rem); /* Smaller gap on mobile */
+    padding-bottom: clamp(1rem, 4vh, 2.5rem); /* Adjust form padding for mobile */
+  }
+  
+  .form-group {
+    gap: clamp(0.5rem, 1.5vh, 1rem); /* Smaller gap on mobile */
+    margin-bottom: clamp(0.75rem, 2vh, 1.5rem); /* Adjust margin for mobile */
+  }
+  
+  .home-about-link {
+    /* top is set dynamically via JavaScript */
+    transform: translateY(0);
+    right: clamp(1.5rem, 5vw, 3rem); /* Move further left on mobile */
   }
 }

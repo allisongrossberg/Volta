@@ -12,7 +12,7 @@
   background-color: rgba(14, 5, 2, 0.85); /* Match app background #0e0502 with opacity */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 999999; /* Maximum z-index to cover everything */
+  z-index: 10000; /* High z-index to cover everything, but within reasonable scale */
   display: flex;
   align-items: center;
   justify-content: center;
