@@ -28,7 +28,7 @@ interface GalleryItem {
   imageUrl: string
 }
 
-function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: DraggableGalleryProps) {
+function DraggableGallery({ onBack, generatedContent }: DraggableGalleryProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -37,7 +37,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
   const [isDragging, setIsDragging] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
-  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null)
   const [mouseHasMoved, setMouseHasMoved] = useState(false)
   
   const targetXRef = useRef(0)
@@ -63,7 +62,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
   const expandedItemRef = useRef<HTMLDivElement | null>(null)
   const visibleItemsRef = useRef<Set<string>>(new Set())
   const lastXRef = useRef(0)
-  const lastYRef = useRef(0)
   const lastUpdateTimeRef = useRef(0)
 
   // Settings
@@ -120,7 +118,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
 
   // Horizontal layout - single row
   const cellWidth = settings.baseWidth + settings.itemGap
-  const cellHeight = settings.largeHeight + settings.itemGap
 
   // Get item size - all items same size for horizontal layout
   const getItemSize = () => {
@@ -346,7 +343,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
   const expandItem = (item: HTMLElement, itemIndex: number) => {
     setIsExpanded(true)
     setActiveItemId(item.id)
-    setActiveItemIndex(itemIndex)
     canDragRef.current = false
     if (containerRef.current) {
       containerRef.current.style.cursor = 'auto'
@@ -377,9 +373,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
     const numberElement = item.querySelector('.item-number') as HTMLElement
     
     if (captionElement && nameElement && numberElement) {
-      // Store original text for later
-      const nameText = nameElement.textContent || ''
-      const numberText = numberElement.textContent || ''
       
       // Create clone for animation
       const captionClone = captionElement.cloneNode(true) as HTMLElement
@@ -763,7 +756,6 @@ function DraggableGallery({ onBack, generatedContent, hypothesis = '' }: Draggab
         expandedItemRef.current = null
         setIsExpanded(false)
         setActiveItemId(null)
-        setActiveItemIndex(null)
         // Re-enable dragging only after everything is cleaned up
         canDragRef.current = true
         if (containerRef.current) {
