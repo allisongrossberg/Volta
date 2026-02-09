@@ -1,6 +1,6 @@
 /**
  * Image Generation Service
- * Uses Pollinations.AI (free, no API key required) for image generation
+ * Uses Pollinations.AI (gen.pollinations.ai). API key required from https://enter.pollinations.ai
  */
 
 /**
@@ -32,15 +32,12 @@ export async function generateImage(
   // Map current form values to original form values
   
   // Calculate safe text length to ensure URL stays under limit
-  // Based on Pollinations.AI API docs: https://github.com/pollinations/pollinations
-  // The endpoint is GET /prompt/{prompt} - URL length is limited by HTTP GET standards
-  // URL format: https://image.pollinations.ai/prompt/{encodedPrompt}?width={width}&height={height}&model={model}&seed={seed}&nologo=true
-  // URL length limits:
-  // - HTTP GET URLs can theoretically be up to 2000-2048 characters
-  // - Testing shows Pollinations.AI works with URLs up to at least 5000 characters
-  // - Base URL: https://image.pollinations.ai/prompt/?width=3072&height=3072&model=flux&nologo=true = 87 chars
-  const MAX_URL_LENGTH = 5000; // Increased limit based on testing - allows for longer prompts
-  const BASE_URL_WITHOUT_SEED = 87; // Base URL without seed: https://image.pollinations.ai/prompt/?width=3072&height=3072&model=flux&nologo=true
+  // API: https://enter.pollinations.ai/api/docs — gateway: gen.pollinations.ai
+  // URL format: https://gen.pollinations.ai/image/{encodedPrompt}?width=&height=&model=flux&seed=&negative=&nologo=true[&key=API_KEY]
+  const MAX_URL_LENGTH = 5000;
+  const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
+  const keyParamLength = apiKey ? `&key=${encodeURIComponent(apiKey)}`.length : 0;
+  const BASE_URL_WITHOUT_SEED = 72 + keyParamLength; // gen.pollinations.ai/image/?width=3072&height=3072&model=flux&nologo=true
   // Fine art style - put FIRST to prioritize fine art aesthetics over literal content
   // Emphasize gallery-quality abstract art with sophisticated color palettes
   const STYLE_PREFIX = `Fine art abstract painting, gallery-quality contemporary art, minimalist composition, sophisticated color palette, dark background, museum-worthy artwork, inspired by: `;
@@ -116,34 +113,28 @@ export async function generateImage(
 }
 
 /**
- * FREE: Pollinations.AI - No API key required!
- * Documentation: https://pollinations.ai/
- * GitHub: https://github.com/pollinations/pollinations
- * 
- * URL Format: https://image.pollinations.ai/prompt/{encodedPrompt}?width={width}&height={height}&model={model}&seed={seed}&negative={negative}&nologo=true
- * 
- * Rate Limits (per IP):
- * - Anonymous: 1 concurrent request (or 1 per 18 seconds)
- * - Seed: 3 concurrent requests
- * - Flower: 7 concurrent requests  
- * - Nectar: 50 concurrent requests
- * 
- * Note: Images are generated on-demand, so they may not be immediately available.
- * Retry logic with exponential backoff is recommended for handling transient errors.
+ * Pollinations.AI — gateway: gen.pollinations.ai (replaces legacy image.pollinations.ai)
+ * Get API key: https://enter.pollinations.ai
+ * Docs: https://enter.pollinations.ai/api/docs
+ *
+ * Auth: Bearer header or ?key=YOUR_API_KEY (we use query param so <img src="..."> works)
+ * Secret keys (sk_) for server-side; Publishable keys (pk_) for client-side (beta, IP rate-limited).
  */
 async function generateWithPollinations(prompt: string, negativePrompt: string): Promise<string> {
+  const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
+  if (!apiKey) {
+    throw new Error(
+      'Pollinations API key required. Get one at https://enter.pollinations.ai and set VITE_POLLINATIONS_API_KEY in your .env'
+    );
+  }
   const encodedPrompt = encodeURIComponent(prompt);
   const encodedNegative = encodeURIComponent(negativePrompt);
-  
-  // Generate a deterministic seed from the prompt for consistency
-  // Same prompt = same seed = same image (useful for caching/reproducibility)
+
   const seed = generateSeedFromString(prompt);
-  
-  // Using Flux model for high quality, 3072x3072 resolution with seed for ultra high-resolution output
-  // Higher resolution ensures quality on detail page, gallery will resize appropriately
-  // URL format matches Pollinations.AI documentation: /prompt/{prompt}?width={w}&height={h}&model={m}&seed={s}&negative={n}&nologo=true
-  // Negative prompt excludes inappropriate content (children, creepy, etc.)
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=3072&height=3072&model=flux&seed=${seed}&negative=${encodedNegative}&nologo=true`;
+
+  // New API: /image/{prompt}?width=&height=&model=&seed=&negative=&nologo=true
+  let imageUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?width=3072&height=3072&model=flux&seed=${seed}&negative=${encodedNegative}&nologo=true`;
+  imageUrl += `&key=${encodeURIComponent(apiKey)}`;
   
   console.log(`🎲 Using seed: ${seed} for prompt (first 50 chars): ${prompt.substring(0, 50)}...`);
   console.log(`🚫 Negative prompt: ${negativePrompt.substring(0, 80)}...`);
