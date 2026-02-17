@@ -34,10 +34,14 @@ jobs:
       - name: Build
         env:
           VITE_HUGGINGFACE_API_KEY: ${{ secrets.VITE_HUGGINGFACE_API_KEY }}
+          VITE_POLLINATIONS_API_KEY: ${{ secrets.VITE_POLLINATIONS_API_KEY }}
         run: npm run build
       
       - name: Add .nojekyll file
         run: touch dist/.nojekyll
+      
+      - name: Add 404 fallback for SPA routing
+        run: cp dist/index.html dist/404.html
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
